@@ -65,7 +65,7 @@ double calculateCircleRadius(double xA, double yA, double xB, double yB);
 void keyboard(unsigned char key, int x, int y);
 void processSpecialKeys(int key, int x, int y);
 
-void mouse(int button, int state, int x, int y);
+void mouseToDrawLinesAndSquares(int button, int state, int x, int y);
 void mouseToDrawTriangles(int button, int state, int x, int y);
 void mouseToDrawPolygons(int button, int state, int x, int y);
 void mouseToDrawCircles(int button, int state, int x, int y);
@@ -74,6 +74,8 @@ void drawPoints(point* firstPoint);
 void clearScreen(void);
 void resetClicks(void);
 void applyTranslation(point* aux, int direction);
+
+void invalidKeyMessage(void);
 
 int main(int argc, char** argv) {
     glutInit(&argc, argv); 
@@ -85,7 +87,7 @@ int main(int argc, char** argv) {
     glutReshapeFunc(reshape); 
     glutKeyboardFunc(keyboard);
     glutSpecialFunc(processSpecialKeys);
-    glutMouseFunc(mouse); 
+    glutMouseFunc(mouseToDrawLinesAndSquares); 
     glutDisplayFunc(displayLines); 
 
     freeMode 
@@ -133,15 +135,22 @@ void keyboard(unsigned char key, int x, int y){
       break;
     case T: 
       isToApplyGeometricTransformations = !isToApplyGeometricTransformations;
-      isToApplyGeometricTransformations 
-        ? printf("Ready to apply geometric transformations!\n")
-        : printf("Geometric transformations OFF!\n");
+      if(isToApplyGeometricTransformations){
+        printf("Ready to apply geometric transformations!\n");
+        printf("Press 't' to apply translations\n");
+        printf("Press 'r' to apply rotations\n");
+        printf("Press 's' to apply scales\n");
+        printf("Press 'c' to apply shears\n");
+        printf("Press 'm' to apply mirrors\n");
+      } else {
+        printf("Geometric transformations OFF!\n");
+      }
       break;
     case l:
       if(!isToApplyGeometricTransformations) {
         printf("Mode changed to draw lines!\n");
         glutDisplayFunc(displayLines);
-        glutMouseFunc(mouse);
+        glutMouseFunc(mouseToDrawLinesAndSquares);
         if(!freeMode) {
           clearScreen();
           glutPostRedisplay();
@@ -169,7 +178,7 @@ void keyboard(unsigned char key, int x, int y){
       if(!isToApplyGeometricTransformations) {
         printf("Mode changed to draw squares!\n");
         glutDisplayFunc(displaySquares);
-        glutMouseFunc(mouse);
+        glutMouseFunc(mouseToDrawLinesAndSquares);
         if(!freeMode) {
           clearScreen();
           glutPostRedisplay();
@@ -177,6 +186,7 @@ void keyboard(unsigned char key, int x, int y){
         resetClicks();
       } else {
         activeTransformation = SCALE;
+        printf("Ready to scale objects\n");
       }
       break;
     case t:
@@ -191,12 +201,15 @@ void keyboard(unsigned char key, int x, int y){
         resetClicks();
       } else {
         activeTransformation = TRANSLATE;
+        printf("Ready to translate objects\n");
       }
       break;
     case r:
       if(isToApplyGeometricTransformations) {
         activeTransformation = ROTATE;
-
+        printf("Ready to rotate objects\n");
+      } else {
+        invalidKeyMessage();
       }
       break;
     case c:
@@ -211,23 +224,17 @@ void keyboard(unsigned char key, int x, int y){
         resetClicks();
       } else {
         activeTransformation = SHEAR;
+        printf("Ready to shear objects\n");
       }
       break;
     case m:
       if(isToApplyGeometricTransformations) {
         activeTransformation = MIRROR;
+        printf("Ready to mirror objects\n");
       }
       break;
     default:
-      printf("Invalid key!\n");
-      printf("Press 'l' to draw lines\n");
-      printf("Press 's' to draw squares\n");
-      printf("Press 't' to draw triagles\n");
-      printf("Press 'p' to draw polygons\n");
-      printf("Press 'F' to toggle free mode\n");
-      printf("Press 'T' to toggle mode of apply geometric transformations\n");
-      printf("Press 'backspace' to clear screen\n");
-      printf("Press 'esc' to exit\n");
+      invalidKeyMessage();
       break;
   }
 }
@@ -351,7 +358,7 @@ void processSpecialKeys(int key, int x, int y) {
   }
 }
 
-void mouse(int button, int state, int x, int y) {
+void mouseToDrawLinesAndSquares(int button, int state, int x, int y) {
   switch (button) {
     case GLUT_LEFT_BUTTON:
       if (state == GLUT_DOWN) {
@@ -619,4 +626,16 @@ void applyTranslation(point* aux, int direction) {
     translate(aux->x, aux->y, 5, direction);
     aux = aux->next;
   }
+}
+
+void invalidKeyMessage() {
+  printf("Invalid key!\n");
+  printf("Press 'l' to draw lines\n");
+  printf("Press 's' to draw squares\n");
+  printf("Press 't' to draw triagles\n");
+  printf("Press 'p' to draw polygons\n");
+  printf("Press 'F' to toggle free mode\n");
+  printf("Press 'T' to toggle mode of apply geometric transformations\n");
+  printf("Press 'backspace' to clear screen\n");
+  printf("Press 'esc' to exit\n");
 }
