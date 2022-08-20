@@ -577,10 +577,11 @@ void displayCircles(void){
   glColor3f (1.0, 1.0, 1.0); 
   
   if(click1 && click2){
-    start = bresenhamToRasterizeCircles(xA, yA, abs(xB - xA));
+    double radius = calculateCircleRadius(xA, yA, xB, yB);
+    start = bresenhamToRasterizeCircles(xA, yA, radius);
     drawPoints(start);
     printf("Circle center: xy(%.0lf,%.0lf)\n",xA,yA);
-    printf("Circle radius: %.0lf\n", calculateCircleRadius(xA, yA, xB, yB));
+    printf("Circle radius: %.0lf\n", radius);
     click1 = false;
     click2 = false;
   }

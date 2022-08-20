@@ -13,7 +13,7 @@
 struct point{
     int x;
     int y;
-    bool reduced, drawn, isPolygonVertice, isCirclePoint;
+    bool reduced, drawn, isCirclePoint;
     point* next;
 };
 
