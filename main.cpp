@@ -5,15 +5,23 @@
 #include "functions.h"
 
 #define REGION_TO_CLOSE_POLYGON 3
+#define DEFAULT_DISPLACEMENT 5
+#define DEFAULT_ANGLE 5
 
-#define f 102  // Mudar o modo de desenho (Nao limpa a tela quando troca de modo)
+#define f 102  // Alternar modo de desenho livre (Nao limpa a tela quando troca o modo de desenho)
 #define BACKSPACE 8 // Limpar a tela
 #define ESCAPE 27 // Sair do programa
+
+#define DRAW_LINES 0
+#define DRAW_SQUARES 1
+#define DRAW_TRIANGLES 2
+#define DRAW_POLYGONS 3
+#define DRAW_CIRCLES 4
 
 #define l 108 // Desenhar as linhas (padrao)
 #define p 112 // Desenhar os poligonos
 #define s 115 // Desenhar os quadrados 
-#define t 116 // Desenhar os triangulos | Ativar translacao se tiver no modo de transformacoes gerometricas
+#define t 116 // Desenhar os triangulos | Ativar translacao se tiver no modo de transformacoes geometricas
 
 #define T 84 // Mudar o modo para aplicar tranformacoes geometricas
   // #define NONE 0
@@ -33,14 +41,13 @@
 #define m 109 // Aplicar espelhamento no modo de transformacoes geometricas
 
 
-
-
 double xA, yA, xB, yB, xC, yC;
 double polygonStartVerticeX, polygonStartVerticeY;
 bool isFirstLine = true;
 bool freeMode = false;
 bool isToApplyGeometricTransformations = false;
 int activeTransformation = TRANSLATE;
+int activeMode = DRAW_LINES;
 
 bool click1 = false, click2 = false, click3 = false;
 
@@ -54,26 +61,30 @@ void reshape(int w, int h);
 
 void displayLines(void);
 void displaySquares(void);
+  int* getLineOrSquareCentroid(double xA, double yA, double xB, double yB);
 void displayTriangles(void);
-
+  int* getTriangleCentroid(double xA, double yA, double xB, double yB, double xC, double yC);
 void displayPolygons(void);
-bool coordinateIsInClosingArea(double x, double y);
-
+  bool coordinateIsInClosingArea(double x, double y);
 void displayCircles(void);
-double calculateCircleRadius(double xA, double yA, double xB, double yB);
+  double calculateCircleRadius(double xA, double yA, double xB, double yB);
 
 void keyboard(unsigned char key, int x, int y);
+  void backToLastMode(void);
 void processSpecialKeys(int key, int x, int y);
 
 void mouseToDrawLinesAndSquares(int button, int state, int x, int y);
 void mouseToDrawTriangles(int button, int state, int x, int y);
 void mouseToDrawPolygons(int button, int state, int x, int y);
 void mouseToDrawCircles(int button, int state, int x, int y);
+void mouseWhileGeometricTranformationsIsOn(int button, int state, int x, int y);
 
 void drawPoints(point* firstPoint);
 void clearScreen(void);
 void resetClicks(void);
+
 void applyTranslation(point* aux, int direction);
+void applyRotation(point* aux, int direction);
 
 void invalidKeyMessage(void);
 
@@ -136,6 +147,7 @@ void keyboard(unsigned char key, int x, int y){
     case T: 
       isToApplyGeometricTransformations = !isToApplyGeometricTransformations;
       if(isToApplyGeometricTransformations){
+        glutMouseFunc(mouseWhileGeometricTranformationsIsOn);
         printf("Ready to apply geometric transformations!\n");
         printf("Press 't' to apply translations\n");
         printf("Press 'r' to apply rotations\n");
@@ -144,10 +156,12 @@ void keyboard(unsigned char key, int x, int y){
         printf("Press 'm' to apply mirrors\n");
       } else {
         printf("Geometric transformations OFF!\n");
+        backToLastMode();
       }
       break;
     case l:
       if(!isToApplyGeometricTransformations) {
+        activeMode = DRAW_LINES;
         printf("Mode changed to draw lines!\n");
         glutDisplayFunc(displayLines);
         glutMouseFunc(mouseToDrawLinesAndSquares);
@@ -162,6 +176,7 @@ void keyboard(unsigned char key, int x, int y){
       break;
     case p:
       if(!isToApplyGeometricTransformations){
+        activeMode = DRAW_POLYGONS;
         printf("Mode changed to draw polygons!\n");
         glutDisplayFunc(displayPolygons);
         glutMouseFunc(mouseToDrawPolygons);
@@ -176,6 +191,7 @@ void keyboard(unsigned char key, int x, int y){
       break;
     case s:
       if(!isToApplyGeometricTransformations) {
+        activeMode = DRAW_SQUARES;
         printf("Mode changed to draw squares!\n");
         glutDisplayFunc(displaySquares);
         glutMouseFunc(mouseToDrawLinesAndSquares);
@@ -191,6 +207,7 @@ void keyboard(unsigned char key, int x, int y){
       break;
     case t:
       if(!isToApplyGeometricTransformations) {
+        activeMode = DRAW_TRIANGLES;
         printf("Mode changed to draw triangles!\n");
         glutDisplayFunc(displayTriangles);
         glutMouseFunc(mouseToDrawTriangles);
@@ -202,18 +219,21 @@ void keyboard(unsigned char key, int x, int y){
       } else {
         activeTransformation = TRANSLATE;
         printf("Ready to translate objects\n");
+        printf("Use the arrow keys to move!\n");
       }
       break;
     case r:
       if(isToApplyGeometricTransformations) {
         activeTransformation = ROTATE;
         printf("Ready to rotate objects\n");
+        printf("Use arrow left to rotate clockwise or arrow right to rotate counterclockwise!\n");
       } else {
         invalidKeyMessage();
       }
       break;
     case c:
       if(!isToApplyGeometricTransformations) {
+        activeMode = DRAW_CIRCLES;
         printf("Mode changed to draw circles!\n");
         glutDisplayFunc(displayCircles);
         glutMouseFunc(mouseToDrawCircles);
@@ -247,13 +267,13 @@ void processSpecialKeys(int key, int x, int y) {
         switch (activeTransformation) {
           case TRANSLATE:
             applyTranslation(aux, UP);
+            glClear(GL_COLOR_BUFFER_BIT);
             drawPoints(start);
-            glutPostRedisplay();
-            glutSwapBuffers();
             break;
-          // case ROTATE:
-          //   applyRotation(aux);
-          //   break;
+          case ROTATE:
+            printf("Invalid move!\n");
+            printf("Use arrow left to rotate clockwise or arrow right to rotate counterclockwise!\n");
+            break;
           // case SCALE:
           //   applyScale(aux);
           //   break;
@@ -275,13 +295,13 @@ void processSpecialKeys(int key, int x, int y) {
         switch (activeTransformation) {
           case TRANSLATE:
             applyTranslation(aux, DOWN);
+            glClear(GL_COLOR_BUFFER_BIT);
             drawPoints(start);
-            glutPostRedisplay();
-            glutSwapBuffers();
             break;
-          // case ROTATE:
-          //   applyRotation(aux);
-          //   break;
+          case ROTATE:
+            printf("Invalid move!\n");
+            printf("Use arrow left to rotate clockwise or arrow right to rotate counterclockwise!\n");
+            break;
           // case SCALE:
           //   applyScale(aux);
           //   break;
@@ -303,13 +323,14 @@ void processSpecialKeys(int key, int x, int y) {
         switch (activeTransformation) {
           case TRANSLATE:
             applyTranslation(aux, LEFT);
+            glClear(GL_COLOR_BUFFER_BIT);
             drawPoints(start);
-            glutPostRedisplay();
-            glutSwapBuffers();
             break;
-          // case ROTATE:
-          //   applyRotation(aux);
-          //   break;
+          case ROTATE:
+            applyRotation(aux, COUNTERCLOCKWISE);
+            glClear(GL_COLOR_BUFFER_BIT);
+            drawPoints(start);
+            break;
           // case SCALE:
           //   applyScale(aux);
           //   break;
@@ -331,9 +352,8 @@ void processSpecialKeys(int key, int x, int y) {
           switch (activeTransformation) {
             case TRANSLATE:
               applyTranslation(aux, RIGHT);
+              glClear(GL_COLOR_BUFFER_BIT);
               drawPoints(start);
-              glutPostRedisplay();
-              glutSwapBuffers();
               break;
             // case ROTATE:
             //   applyRotation(aux);
@@ -356,6 +376,7 @@ void processSpecialKeys(int key, int x, int y) {
     default:
       break;
   }
+  glutSwapBuffers();
 }
 
 void mouseToDrawLinesAndSquares(int button, int state, int x, int y) {
@@ -474,6 +495,18 @@ void mouseToDrawCircles(int button, int state, int x, int y) {
   }
 }
 
+void mouseWhileGeometricTranformationsIsOn(int button, int state, int x, int y){
+  switch (button) {
+    case GLUT_LEFT_BUTTON:
+      if (state == GLUT_DOWN) {
+        printf("Press 'T' to turn off geometric transformations mode and then back to draw!\n");
+      }
+      break;
+    default:
+      break;
+  }
+}
+
 void displayLines(void){
     glClear(GL_COLOR_BUFFER_BIT);
     glLoadIdentity();
@@ -481,8 +514,10 @@ void displayLines(void){
     glColor3f (1.0, 1.0, 1.0); 
     
     if(click1 && click2){
-      start = bresenhamAlgorithm(xA, yA, xB, yB);
-      printf("Line poins: xAyA(%.0lf,%.0lf) | xByB(%.0lf,%.0lf)\n",xA,yA,xB,yB);
+      int* centroidCoordinates = getLineOrSquareCentroid(xA, yA, xB, yB);
+
+      start = bresenhamAlgorithm(xA, yA, xB, yB, LINE, centroidCoordinates);
+      printf("Line vertices: xAyA(%.0lf,%.0lf) | xByB(%.0lf,%.0lf)\n",xA,yA,xB,yB);
       drawPoints(start);
       click1 = false;
       click2 = false;
@@ -499,13 +534,15 @@ void displaySquares(void){
     glColor3f (1.0, 1.0, 1.0); 
     
     if(click1 && click2){
-      start = bresenhamAlgorithm(xA, yA, xB, yA);
+      int* centroidCoordinates = getLineOrSquareCentroid(xA, yA, xB, yB);
+
+      start = bresenhamAlgorithm(xA, yA, xB, yA, SQUARE, centroidCoordinates);
       drawPoints(start);
-      start = bresenhamAlgorithm(xB, yA, xB, yB);
+      start = bresenhamAlgorithm(xB, yA, xB, yB, SQUARE, centroidCoordinates);
       drawPoints(start);
-      start = bresenhamAlgorithm(xB, yB, xA, yB);
+      start = bresenhamAlgorithm(xB, yB, xA, yB, SQUARE, centroidCoordinates);
       drawPoints(start);
-      start = bresenhamAlgorithm(xA, yB, xA, yA);
+      start = bresenhamAlgorithm(xA, yB, xA, yA, SQUARE, centroidCoordinates);
       drawPoints(start);
       printf("Square vertices:\nxAyA(%.0lf,%.0lf) | xAyB(%.0lf,%.0lf)\nxAyB(%.0lf,%.0lf) | xByB(%.0lf,%.0lf)\nxByB(%.0lf,%.0lf) | xAyB(%.0lf,%.0lf)\nxAyB(%.0lf,%.0lf) | xAyA(%.0lf,%.0lf)\n",xA,yA,xB,yA,xB,yA,xB,yB,xB,yB,xA,yB,xA,yB,xA,yA);
       click1 = false;
@@ -523,11 +560,13 @@ void displayTriangles(void){
   glColor3f (1.0, 1.0, 1.0); 
   
   if(click1 && click2 && click3){
-    start = bresenhamAlgorithm(xA, yA, xB, yB);
+    int* centroidCoordinates = getTriangleCentroid(xA, yA, xB, yB, xC, yC);
+
+    start = bresenhamAlgorithm(xA, yA, xB, yB, TRIANGLE, centroidCoordinates);
     drawPoints(start);
-    start = bresenhamAlgorithm(xB, yB, xC, yC);
+    start = bresenhamAlgorithm(xB, yB, xC, yC, TRIANGLE, centroidCoordinates);
     drawPoints(start);
-    start = bresenhamAlgorithm(xC, yC, xA, yA);
+    start = bresenhamAlgorithm(xC, yC, xA, yA, TRIANGLE, centroidCoordinates);
     drawPoints(start);
     printf("Triangle vertices:\nxAyA(%.0lf,%.0lf) | xAyB(%.0lf,%.0lf)\nxAyB(%.0lf,%.0lf) | xByB(%.0lf,%.0lf)\nxByB(%.0lf,%.0lf) | xAyB(%.0lf,%.0lf)\n",xA,yA,xB,yB,xB,yB,xC,yC,xC,yC,xA,yA);
     click1 = false;
@@ -545,14 +584,12 @@ void displayPolygons(void){
     glColor3f (1.0, 1.0, 1.0); 
     
     if(click1 && click2){
-      start = bresenhamAlgorithm(xA, yA, xB, yB);
-      polygonPoints = pushPolygonVertice(xB, yB);
-      drawPoints(start);
-      printf("Line poins: xAyA(%.0lf,%.0lf) | xByB(%.0lf,%.0lf)\n",xA,yA,xB,yB);
+      int centroidCoordinates[2] = {0, 0};
       if(coordinateIsInClosingArea(xB, yB)){
         click1 = false;
         isFirstLine = true;
-        start = bresenhamAlgorithm(polygonStartVerticeX, polygonStartVerticeY, xB, yB);
+        start = bresenhamAlgorithm(polygonStartVerticeX, polygonStartVerticeY, xA, yA, POLYGON, centroidCoordinates);
+        printf("Line poins: xAyA(%.0lf,%.0lf) | xByB(%.0lf,%.0lf)\n",xA, yA, polygonStartVerticeX,polygonStartVerticeY);
         drawPoints(start);
         point* pnt = polygonPoints;
         printf("Polygon vertices:\n");
@@ -562,6 +599,11 @@ void displayPolygons(void){
           pnt = pnt->next;
         }
         polygonPoints = resetPolygonList();
+      } else {
+        start = bresenhamAlgorithm(xA, yA, xB, yB, POLYGON, centroidCoordinates);
+        polygonPoints = pushPolygonVertice(xB, yB);
+        drawPoints(start);
+        printf("Line poins: xAyA(%.0lf,%.0lf) | xByB(%.0lf,%.0lf)\n",xA,yA,xB,yB);
       }
       click2 = false;
     }
@@ -588,6 +630,8 @@ void displayCircles(void){
 
   glutSwapBuffers();
 }
+
+
 
 void drawPoints(point* firstPoint){
   point* pnt;
@@ -622,11 +666,38 @@ double calculateCircleRadius(double xA, double yA, double xB, double yB) {
   return sqrt(pow(xA - xB, 2) + pow(yA - yB, 2));
 }
 
-void applyTranslation(point* aux, int direction) {
-  while(aux != NULL){
-    translate(aux->x, aux->y, 5, direction);
-    aux = aux->next;
+void applyTranslation(point* pnt, int direction) {
+  while(pnt != NULL){
+    translate(pnt->x, pnt->y, DEFAULT_DISPLACEMENT, direction);
+    pnt = pnt->next;
   }
+}
+
+void applyRotation(point* pnt, int direction) {
+  while(pnt != NULL){
+    translate(pnt->x, pnt->y, pnt->centroidCoordinateX, LEFT);
+    translate(pnt->x, pnt->y, pnt->centroidCoordinateY, DOWN);
+    rotate(pnt->x, pnt->y, DEFAULT_ANGLE, direction);
+    translate(pnt->x, pnt->y, pnt->centroidCoordinateX, RIGHT);
+    translate(pnt->x, pnt->y, pnt->centroidCoordinateY, UP);
+    pnt = pnt->next;
+  }
+}
+
+int* getLineOrSquareCentroid(double xA, double yA, double xB, double yB) {
+  int centroidCoordinates[2];
+  centroidCoordinates[0] = (int)(xA + xB) / 2;
+  centroidCoordinates[1] = (int)(yA + yB) / 2;
+
+  return centroidCoordinates;
+}
+
+int* getTriangleCentroid(double xA, double yA, double xB, double yB, double xC, double yC) {
+  int centroidCoordinates[2];
+  centroidCoordinates[0] = (int)(xA + xB + xC) / 3;
+  centroidCoordinates[1] = (int)(yA + yB + yC) / 3;
+
+  return centroidCoordinates;
 }
 
 void invalidKeyMessage() {
@@ -639,4 +710,39 @@ void invalidKeyMessage() {
   printf("Press 'T' to toggle mode of apply geometric transformations\n");
   printf("Press 'backspace' to clear screen\n");
   printf("Press 'esc' to exit\n");
+}
+
+void backToLastMode() {
+  switch(activeMode) {
+    case DRAW_LINES:
+      activeMode = DRAW_LINES;
+      glutMouseFunc(mouseToDrawLinesAndSquares);
+      glutDisplayFunc(displayLines);
+      break;
+    case DRAW_SQUARES:
+      activeMode = DRAW_SQUARES;
+      glutMouseFunc(mouseToDrawLinesAndSquares);
+      glutDisplayFunc(displaySquares);
+      break;
+    case DRAW_TRIANGLES:
+      activeMode = DRAW_TRIANGLES;
+      glutMouseFunc(mouseToDrawTriangles);
+      glutDisplayFunc(displayTriangles);
+      break;
+    case DRAW_POLYGONS:
+      activeMode = DRAW_POLYGONS;
+      glutMouseFunc(mouseToDrawPolygons);
+      glutDisplayFunc(displayPolygons);
+      break;
+    case DRAW_CIRCLES:
+      activeMode = DRAW_CIRCLES;
+      glutMouseFunc(mouseToDrawCircles);
+      glutDisplayFunc(displayCircles);
+      break;
+    default:
+      activeMode = DRAW_LINES;
+      glutMouseFunc(mouseToDrawLinesAndSquares);
+      glutDisplayFunc(displayLines);
+      break;
+  }
 }
