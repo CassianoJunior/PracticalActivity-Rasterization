@@ -4,6 +4,8 @@
 
 #include <stdio.h>
 
+#define PI 3.14159265
+
 #define NONE 0
 #define RIGHT 1
 #define LEFT 2
@@ -29,22 +31,64 @@ struct point{
     point* next;
 };
 
+struct lineVertices{
+  point* v1;
+  point* v2;
+  int centroidCoordinateX;
+  int centroidCoordinateY;
+
+  lineVertices* next;
+};
+
+struct squareVertices{
+  point* v1;
+  point* v2;
+  point* v3;
+  point* v4;
+  int centroidCoordinateX;
+  int centroidCoordinateY;
+
+  squareVertices* next;
+};
+
+struct triangleVertices{
+  point* v1;
+  point* v2;
+  point* v3;
+  int centroidCoordinateX;
+  int centroidCoordinateY;
+
+  triangleVertices* next;
+};
+
 bool isFirstOctant(double x1, double y1, double x2, double y2);
-point* pushPoint(int x, int y, bool reduced, int isPointOf, int centroidCoordinates[2], bool isVertice);
+point* pushPoint(int x, int y, bool reduced, int isPointOf, bool isVertice);
+lineVertices* pushLineVertices(point* v1, point* v2, int centroidCoordinateX, int centroidCoordinateY);
+squareVertices* pushSquareVertices(point* v1, point* v2, point* v3, point* v4, int centroidCoordinateX, int centroidCoordinateY);
+triangleVertices* pushTriangleVertices(point* v1, point* v2, point* v3, int centroidCoordinateX, int centroidCoordinateY);
 point* popPoint();
-void retaImediata(double x1,double y1,double x2,double y2, int centroidCoordinates[2]);
-point* bresenham(double x1, double y1, double x2, double y2, bool declivity, bool simetric, int isPointOf, int centroidCoordinates[2]);
+void retaImediata(double x1,double y1,double x2,double y2);
+point* bresenham(double x1, double y1, double x2, double y2, bool declivity, bool simetric, int isPointOf);
 void reductionToFirstOctant(double &x1, double &y1, double &x2, double &y2, bool &declivity, bool &simetric);
 void inverseTransformation(bool declivity, bool simetric);
-point* bresenhamWithReductionToFirstOctant(double x1, double y1, double x2, double y2, int isPointOf, int centroidCoordinates[2]);
-point* bresenhamAlgorithm(double x1, double y1, double x2, double y2, int isPointOf, int centroidCoordinates[2]);
+point* bresenhamWithReductionToFirstOctant(double x1, double y1, double x2, double y2, int isPointOf);
+point* bresenhamAlgorithm(double x1, double y1, double x2, double y2, int isPointOf);
 point* resetList(void);
 point* resetPolygonList(void);
 point* pushPolygonVertice(int x, int y);
 void translateToRealCoordinates(double originX, double originY);
 
-point* firstPoint = NULL;
-point* lastPoint = NULL;
+point* firstPointDrawn = NULL;
+point* lastPointDrawn = NULL;
+
+lineVertices* firstLineVertices = NULL;
+lineVertices* lastLineVertices = NULL;
+
+squareVertices* firstSquareVertices = NULL;
+squareVertices* lastSquareVertices = NULL;
+
+triangleVertices* firstTriangleVertices = NULL;
+triangleVertices* lastTriangleVertices = NULL;
 
 point* firstPolygonPoint = NULL;
 
@@ -54,7 +98,7 @@ bool isFirstOctant(double x1, double y1, double x2, double y2) {
 }
 
 
-point* pushPoint(int x, int y, bool reduced, int isPointOf, int centroidCoordinates[2], bool isVertice) {
+point* pushPoint(int x, int y, bool reduced, int isPointOf, bool isVertice) {
   point* pnt = new point;
   pnt->x = x;
   pnt->y = y;
@@ -62,18 +106,73 @@ point* pushPoint(int x, int y, bool reduced, int isPointOf, int centroidCoordina
   pnt->drawn = false;
   pnt->isVertice = isVertice;
   pnt->isPointOf = isPointOf;
-  pnt->centroidCoordinateX = centroidCoordinates[0];
-  pnt->centroidCoordinateY = centroidCoordinates[1];
   pnt->next = NULL;
-  if (firstPoint == NULL) {
-    firstPoint = pnt;
-    lastPoint = pnt;
+  if (firstPointDrawn == NULL) {
+    firstPointDrawn = pnt;
+    lastPointDrawn = pnt;
   } else {
-    lastPoint->next = pnt;
-    lastPoint = pnt;
+    lastPointDrawn->next = pnt;
+    lastPointDrawn = pnt;
   }
 
-	return firstPoint;
+	return firstPointDrawn;
+}
+
+lineVertices* pushLineVertices(point* v1, point* v2, int centroidCoordinateX, int centroidCoordinateY) {
+  lineVertices* lv = new lineVertices;
+  lv->v1 = v1;
+  lv->v2 = v2;
+  lv->centroidCoordinateX = centroidCoordinateX;
+  lv->centroidCoordinateY = centroidCoordinateY;
+  lv->next = NULL;
+  if (firstLineVertices == NULL) {
+    firstLineVertices = lv;
+    lastLineVertices = lv;
+  } else {
+    lastLineVertices->next = lv;
+    lastLineVertices = lv;
+  }
+
+  return firstLineVertices;
+}
+
+squareVertices* pushSquareVertices(point* v1, point* v2, point* v3, point* v4, int centroidCoordinateX, int centroidCoordinateY) {
+  squareVertices* sv = new squareVertices;
+  sv->v1 = v1;
+  sv->v2 = v2;
+  sv->v3 = v3;
+  sv->v4 = v4;
+  sv->centroidCoordinateX = centroidCoordinateX;
+  sv->centroidCoordinateY = centroidCoordinateY;
+  sv->next = NULL;
+  if (firstSquareVertices == NULL) {
+    firstSquareVertices = sv;
+    lastSquareVertices = sv;
+  } else {
+    lastSquareVertices->next = sv;
+    lastSquareVertices = sv;
+  }
+
+  return firstSquareVertices;
+}
+
+triangleVertices* pushTriangleVertices(point* v1, point* v2, point* v3, int centroidCoordinateX, int centroidCoordinateY) {
+  triangleVertices* tv = new triangleVertices;
+  tv->v1 = v1;
+  tv->v2 = v2;
+  tv->v3 = v3;
+  tv->centroidCoordinateX = centroidCoordinateX;
+  tv->centroidCoordinateY = centroidCoordinateY;
+  tv->next = NULL;
+  if (firstTriangleVertices == NULL) {
+    firstTriangleVertices = tv;
+    lastTriangleVertices = tv;
+  } else {
+    lastTriangleVertices->next = tv;
+    lastTriangleVertices = tv;
+  }
+
+  return firstTriangleVertices;
 }
 
 point* pushPolygonVertice(int x, int y) {
@@ -97,20 +196,20 @@ point* pushPolygonVertice(int x, int y) {
 point* popPoint() {
 	point* pnt = NULL;
   point* removed = NULL;
-	if(firstPoint != NULL) {
-		pnt = firstPoint->next;
-    removed = firstPoint;
-		delete firstPoint;
-		firstPoint = pnt;
+	if(firstPointDrawn != NULL) {
+		pnt = firstPointDrawn->next;
+    removed = firstPointDrawn;
+		delete firstPointDrawn;
+		firstPointDrawn = pnt;
 	}
 	return removed;
 }
 
-void retaImediata(double x1,double y1,double x2,double y2, int isPointOf, int centroidCoordinates[2]) {
+void retaImediata(double x1,double y1,double x2,double y2, int isPointOf) {
     double m, b, yd, xd;
     double xmin, xmax,ymin,ymax;
-    firstPoint = pushPoint((int)x1,(int)y1, false, isPointOf, centroidCoordinates, false);
-    firstPoint = pushPoint((int)x2,(int)y2, false, isPointOf, centroidCoordinates, false);
+    firstPointDrawn = pushPoint((int)x1,(int)y1, false, isPointOf, false);
+    firstPointDrawn = pushPoint((int)x2,(int)y2, false, isPointOf, false);
 
     if(x2-x1 != 0){ 
         m = (y2-y1)/(x2-x1);
@@ -123,7 +222,7 @@ void retaImediata(double x1,double y1,double x2,double y2, int isPointOf, int ce
             for(int x = (int)xmin+1; x < xmax; x++){
                 yd = (m*x)+b;
                 yd = floor(0.5+yd);
-                firstPoint = pushPoint(x,(int)yd, false, isPointOf, centroidCoordinates, false);
+                firstPointDrawn = pushPoint(x,(int)yd, false, isPointOf, false);
             }
         } else {
             ymin = (y1 < y2)? y1 : y2;
@@ -132,7 +231,7 @@ void retaImediata(double x1,double y1,double x2,double y2, int isPointOf, int ce
             for(int y = (int)ymin + 1; y < ymax; y++){
                 xd = (y - b)/m;
                 xd = floor(0.5+xd);
-                firstPoint = pushPoint((int)xd,y, false, isPointOf, centroidCoordinates, false);
+                firstPointDrawn = pushPoint((int)xd,y, false, isPointOf, false);
             }
         }
 
@@ -140,15 +239,15 @@ void retaImediata(double x1,double y1,double x2,double y2, int isPointOf, int ce
         ymin = (y1 < y2) ? y1 : y2;
         ymax = (y1 > y2) ? y1 : y2;
         for(int y = (int)ymin + 1; y < ymax; y++){
-            firstPoint = pushPoint((int)x1,y, false, isPointOf, centroidCoordinates, false);
+            firstPointDrawn = pushPoint((int)x1,y, false, isPointOf, false);
         }
     }
 }
 
-point* bresenham(double x1, double y1, double x2, double y2, bool declivity, bool simetric, int isPointOf, int centroidCoordinates[2]) {
+point* bresenham(double x1, double y1, double x2, double y2, bool declivity, bool simetric, int isPointOf) {
   bool reduced = declivity || simetric;
-  firstPoint = pushPoint((int)x1,(int)y1, reduced, isPointOf, centroidCoordinates, true);
-  firstPoint = pushPoint((int)x2,(int)y2, reduced, isPointOf, centroidCoordinates, true);
+  firstPointDrawn = pushPoint((int)x1,(int)y1, reduced, isPointOf, true);
+  firstPointDrawn = pushPoint((int)x2,(int)y2, reduced, isPointOf, true);
 
   double deltax = x2 - x1;
   double deltay = y2 - y1;
@@ -167,13 +266,13 @@ point* bresenham(double x1, double y1, double x2, double y2, bool declivity, boo
     }
     x++;
     if(declivity || simetric){
-      firstPoint = pushPoint((int)x,(int)y, true, isPointOf, centroidCoordinates, false);
+      firstPointDrawn = pushPoint((int)x,(int)y, true, isPointOf, false);
     } else {
-      firstPoint = pushPoint((int)x,(int)y, false, isPointOf, centroidCoordinates, false);
+      firstPointDrawn = pushPoint((int)x,(int)y, false, isPointOf, false);
     }
   }
 
-  return firstPoint;
+  return firstPointDrawn;
 }
 
 void reductionToFirstOctant(double &x1, double &y1, double &x2, double &y2, bool &declivity, bool &simetric) {
@@ -211,7 +310,7 @@ void reductionToFirstOctant(double &x1, double &y1, double &x2, double &y2, bool
 }
 
 void inverseTransformation(bool declivity, bool simetric) {
-  point* pnt = firstPoint;
+  point* pnt = firstPointDrawn;
   while(pnt != NULL) {
     if(pnt->reduced && !pnt->drawn) {
       if (declivity) {
@@ -227,24 +326,39 @@ void inverseTransformation(bool declivity, bool simetric) {
   }
 }
 
-point* bresenhamWithReductionToFirstOctant(double x1, double y1, double x2, double y2, int isPointOf, int centroidCoordinates[2]) {
+point* bresenhamWithReductionToFirstOctant(double x1, double y1, double x2, double y2, int isPointOf) {
   bool declivity = false, simetric = false;
   reductionToFirstOctant(x1, y1, x2, y2, declivity, simetric);
-  firstPoint = bresenham(x1, y1, x2, y2, declivity, simetric, isPointOf, centroidCoordinates);
+  firstPointDrawn = bresenham(x1, y1, x2, y2, declivity, simetric, isPointOf);
   inverseTransformation(declivity, simetric);
 
-  return firstPoint;
+  return firstPointDrawn;
 }
 
-point* bresenhamAlgorithm(double x1, double y1, double x2, double y2, int isPointOf, int centroidCoordinates[2]) {
+point* bresenhamAlgorithm(double x1, double y1, double x2, double y2, int isPointOf) {
   return isFirstOctant(x1, y1, x2, y2) ? 
-    bresenham(x1, y1, x2, y2, false, false, isPointOf, centroidCoordinates) : 
-    bresenhamWithReductionToFirstOctant(x1, y1, x2, y2, isPointOf, centroidCoordinates);
+    bresenham(x1, y1, x2, y2, false, false, isPointOf) : 
+    bresenhamWithReductionToFirstOctant(x1, y1, x2, y2, isPointOf);
 }
 
 point* resetList(void){
-  firstPoint = NULL;
-  return firstPoint;
+  firstPointDrawn = NULL;
+  return firstPointDrawn;
+}
+
+lineVertices* resetLineList(){
+  firstLineVertices = NULL;
+  return firstLineVertices;
+}
+
+squareVertices* resetSquareList(){
+  firstSquareVertices = NULL;
+  return firstSquareVertices;
+}
+
+triangleVertices* resetTriangleList(){
+  firstTriangleVertices = NULL;
+  return firstTriangleVertices;
 }
 
 point* resetPolygonList(void){
@@ -253,7 +367,6 @@ point* resetPolygonList(void){
 }
 
 point* bresenhamToRasterizeCircles(double originX, double originY, double radius) {
-  int centroidCoordinates[2] = {originX, originY};
   double d = 1 - radius;
   double eastInc = 3;
   double southeastInc = 5 - 2*radius;
@@ -261,10 +374,10 @@ point* bresenhamToRasterizeCircles(double originX, double originY, double radius
   double x = 0;
   double y = radius;
   
-  firstPoint = pushPoint(0,(int)radius, false, CIRCLE, centroidCoordinates, false);
-  firstPoint = pushPoint(0,-(int)radius, false, CIRCLE, centroidCoordinates, false);
-  firstPoint = pushPoint((int)radius, 0, false, CIRCLE, centroidCoordinates, false);
-  firstPoint = pushPoint(-(int)radius, 0, false, CIRCLE, centroidCoordinates, false);
+  firstPointDrawn = pushPoint(0,(int)radius, false, CIRCLE, false);
+  firstPointDrawn = pushPoint(0,-(int)radius, false, CIRCLE, false);
+  firstPointDrawn = pushPoint((int)radius, 0, false, CIRCLE, false);
+  firstPointDrawn = pushPoint(-(int)radius, 0, false, CIRCLE, false);
 
   while(y > x){
     if(d < 0){
@@ -279,19 +392,19 @@ point* bresenhamToRasterizeCircles(double originX, double originY, double radius
     }
     
     x++;
-    firstPoint = pushPoint((int)x,(int)y, false, CIRCLE, centroidCoordinates, false);
-    firstPoint = pushPoint(-(int)x,(int)y, false, CIRCLE, centroidCoordinates, false);
-    firstPoint = pushPoint(-(int)y, (int)x, false, CIRCLE, centroidCoordinates, false);
-    firstPoint = pushPoint(-(int)y,-(int)x, false, CIRCLE, centroidCoordinates, false);
-    firstPoint = pushPoint(-(int)x,-(int)y, false, CIRCLE, centroidCoordinates, false);
-    firstPoint = pushPoint((int)x,-(int)y, false, CIRCLE, centroidCoordinates, false);
-    firstPoint = pushPoint((int)y,-(int)x, false, CIRCLE, centroidCoordinates, false);
-    firstPoint = pushPoint((int)y,(int)x, false, CIRCLE, centroidCoordinates, false);
+    firstPointDrawn = pushPoint((int)x,(int)y, false, CIRCLE, false);
+    firstPointDrawn = pushPoint(-(int)x,(int)y, false, CIRCLE, false);
+    firstPointDrawn = pushPoint(-(int)y, (int)x, false, CIRCLE, false);
+    firstPointDrawn = pushPoint(-(int)y,-(int)x, false, CIRCLE, false);
+    firstPointDrawn = pushPoint(-(int)x,-(int)y, false, CIRCLE, false);
+    firstPointDrawn = pushPoint((int)x,-(int)y, false, CIRCLE, false);
+    firstPointDrawn = pushPoint((int)y,-(int)x, false, CIRCLE, false);
+    firstPointDrawn = pushPoint((int)y,(int)x, false, CIRCLE, false);
   }
 
   translateToRealCoordinates(originX, originY);
 
-  return firstPoint;
+  return firstPointDrawn;
 }
 
 void translate(int &x, int &y, int quantity, int direction) {
@@ -307,17 +420,23 @@ void translate(int &x, int &y, int quantity, int direction) {
 }
 
 void rotate(int &x, int &y, float angle, int direction) {
+  double rad = angle * PI / 180;
   if(direction == CLOCKWISE) {
-    x += (int)(x * cos(angle) - y * sin(angle));
-    y += (int)(x * sin(angle) + y * cos(angle));
+    x = (int)(x * cos(-rad) - y * sin(-rad));
+    y = (int)(x * sin(-rad) + y * cos(-rad));
   } else if(direction == COUNTERCLOCKWISE) {
-    x -= (int)(x * cos(angle) - y * sin(angle));
-    y -= (int)(x * sin(angle) + y * cos(angle));
+    x = (int)(x * cos(rad) - y * sin(rad));
+    y = (int)(x * sin(rad) + y * cos(rad));
   }
 }
 
+void scale(int &x, int &y, int quantity) {
+  x *= quantity;
+  y *= quantity;
+}
+
 void translateToRealCoordinates(double originX, double originY) {
-  point* pnt = firstPoint;
+  point* pnt = firstPointDrawn;
   while(pnt != NULL) {
     if(!pnt->drawn) {
       translate(pnt->x, pnt->y, originX, RIGHT);

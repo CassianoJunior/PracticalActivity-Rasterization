@@ -7,6 +7,8 @@
 #define REGION_TO_CLOSE_POLYGON 3
 #define DEFAULT_DISPLACEMENT 5
 #define DEFAULT_ANGLE 5
+#define DEFAULT_INCREASE_SCALE 1.1
+#define DEFAULT_DECREASE_SCALE 0.9
 
 #define f 102  // Alternar modo de desenho livre (Nao limpa a tela quando troca o modo de desenho)
 #define BACKSPACE 8 // Limpar a tela
@@ -32,6 +34,8 @@
   #define TRANSLATE 1000 // Translacao
   #define ROTATE 1001 // Rotacao
   #define SCALE 1002 // Escala
+    // #define INCREASE 10020 // Aumentar
+    // #define DECREASE 10021 // Diminuir
   #define MIRROR 1003 // Espelhamento / reflexao
   #define SHEAR 1004 // Cisalhamento
 #define r 114 // Aplicar rotacoes no modo de transformacoes geometricas
@@ -61,9 +65,7 @@ void reshape(int w, int h);
 
 void displayLines(void);
 void displaySquares(void);
-  int* getLineOrSquareCentroid(double xA, double yA, double xB, double yB);
 void displayTriangles(void);
-  int* getTriangleCentroid(double xA, double yA, double xB, double yB, double xC, double yC);
 void displayPolygons(void);
   bool coordinateIsInClosingArea(double x, double y);
 void displayCircles(void);
@@ -81,14 +83,18 @@ void mouseWhileGeometricTranformationsIsOn(int button, int state, int x, int y);
 
 void drawPoints(point* firstPoint);
 void clearScreen(void);
+void resetLists(void);
 void resetClicks(void);
+point* createPoint(double x, double y, int centroidCoordinateX, int centroidCoordinateY);
 
 void applyTranslation(point* aux, int direction);
 void applyRotation(point* aux, int direction);
+void applyScale(int isTo);
 
 void invalidKeyMessage(void);
 
 int main(int argc, char** argv) {
+    afirstLineVertices = NULL;
     glutInit(&argc, argv); 
     glutInitDisplayMode (GLUT_DOUBLE | GLUT_RGB); 
     glutInitWindowSize (width, height);  
@@ -135,7 +141,7 @@ void keyboard(unsigned char key, int x, int y){
       exit(0);
       break;
     case BACKSPACE:
-      clearScreen();
+      resetLists();
       glutPostRedisplay();
       break;
     case f:
@@ -166,7 +172,7 @@ void keyboard(unsigned char key, int x, int y){
         glutDisplayFunc(displayLines);
         glutMouseFunc(mouseToDrawLinesAndSquares);
         if(!freeMode) {
-          clearScreen();
+          resetLists();
           glutPostRedisplay();
         }
         resetClicks();
@@ -181,7 +187,7 @@ void keyboard(unsigned char key, int x, int y){
         glutDisplayFunc(displayPolygons);
         glutMouseFunc(mouseToDrawPolygons);
         if(!freeMode) {
-          clearScreen();
+          resetLists();
           glutPostRedisplay();
         }
         resetClicks();
@@ -196,7 +202,7 @@ void keyboard(unsigned char key, int x, int y){
         glutDisplayFunc(displaySquares);
         glutMouseFunc(mouseToDrawLinesAndSquares);
         if(!freeMode) {
-          clearScreen();
+          resetLists();
           glutPostRedisplay();
         }
         resetClicks();
@@ -212,7 +218,7 @@ void keyboard(unsigned char key, int x, int y){
         glutDisplayFunc(displayTriangles);
         glutMouseFunc(mouseToDrawTriangles);
         if(!freeMode) {
-          clearScreen();
+          resetLists();
           glutPostRedisplay();
         }
         resetClicks();
@@ -226,7 +232,7 @@ void keyboard(unsigned char key, int x, int y){
       if(isToApplyGeometricTransformations) {
         activeTransformation = ROTATE;
         printf("Ready to rotate objects\n");
-        printf("Use arrow left to rotate clockwise or arrow right to rotate counterclockwise!\n");
+        printf("Use arrow left to rotate counterclockwise or arrow right to rotate clockwise!\n");
       } else {
         invalidKeyMessage();
       }
@@ -238,7 +244,7 @@ void keyboard(unsigned char key, int x, int y){
         glutDisplayFunc(displayCircles);
         glutMouseFunc(mouseToDrawCircles);
         if(!freeMode) {
-          clearScreen();
+          resetLists();
           glutPostRedisplay();
         }
         resetClicks();
@@ -269,14 +275,18 @@ void processSpecialKeys(int key, int x, int y) {
             applyTranslation(aux, UP);
             glClear(GL_COLOR_BUFFER_BIT);
             drawPoints(start);
+            glutSwapBuffers();
             break;
           case ROTATE:
             printf("Invalid move!\n");
             printf("Use arrow left to rotate clockwise or arrow right to rotate counterclockwise!\n");
             break;
-          // case SCALE:
-          //   applyScale(aux);
-          //   break;
+          case SCALE:
+            applyScale(DEFAULT_INCREASE_SCALE);
+            glClear(GL_COLOR_BUFFER_BIT);
+            drawPoints(start);
+            glutSwapBuffers();
+            break;
           // case SHEAR:
           //   applyShear(aux);
           //   break;
@@ -297,14 +307,18 @@ void processSpecialKeys(int key, int x, int y) {
             applyTranslation(aux, DOWN);
             glClear(GL_COLOR_BUFFER_BIT);
             drawPoints(start);
+            glutSwapBuffers();
             break;
           case ROTATE:
             printf("Invalid move!\n");
             printf("Use arrow left to rotate clockwise or arrow right to rotate counterclockwise!\n");
             break;
-          // case SCALE:
-          //   applyScale(aux);
-          //   break;
+          case SCALE:
+            applyScale(DEFAULT_DECREASE_SCALE);
+            glClear(GL_COLOR_BUFFER_BIT);
+            drawPoints(start);
+            glutSwapBuffers();
+            break;
           // case SHEAR:
           //   applyShear(aux);
           //   break;
@@ -325,15 +339,18 @@ void processSpecialKeys(int key, int x, int y) {
             applyTranslation(aux, LEFT);
             glClear(GL_COLOR_BUFFER_BIT);
             drawPoints(start);
+            glutSwapBuffers();
             break;
           case ROTATE:
             applyRotation(aux, COUNTERCLOCKWISE);
             glClear(GL_COLOR_BUFFER_BIT);
             drawPoints(start);
+            glutSwapBuffers();
             break;
-          // case SCALE:
-          //   applyScale(aux);
-          //   break;
+          case SCALE:
+            printf("Invalid move!\n");
+            printf("Use arrow up to increase scaling or arrow down to decrease scaling!\n");
+            break;
           // case SHEAR:
           //   applyShear(aux);
           //   break;
@@ -354,13 +371,18 @@ void processSpecialKeys(int key, int x, int y) {
               applyTranslation(aux, RIGHT);
               glClear(GL_COLOR_BUFFER_BIT);
               drawPoints(start);
+              glutSwapBuffers();
               break;
-            // case ROTATE:
-            //   applyRotation(aux);
-            //   break;
-            // case SCALE:
-            //   applyScale(aux);
-            //   break;
+            case ROTATE:
+              applyRotation(aux, CLOCKWISE);
+              glClear(GL_COLOR_BUFFER_BIT);
+              drawPoints(start);
+              glutSwapBuffers();
+              break;
+            case SCALE:
+              printf("Invalid move!\n");
+              printf("Use arrow up to increase scaling or arrow down to decrease scaling!\n");
+              break;
             // case SHEAR:
             //   applyShear(aux);
             //   break;
@@ -376,7 +398,6 @@ void processSpecialKeys(int key, int x, int y) {
     default:
       break;
   }
-  glutSwapBuffers();
 }
 
 void mouseToDrawLinesAndSquares(int button, int state, int x, int y) {
@@ -514,9 +535,14 @@ void displayLines(void){
     glColor3f (1.0, 1.0, 1.0); 
     
     if(click1 && click2){
-      int* centroidCoordinates = getLineOrSquareCentroid(xA, yA, xB, yB);
+      int centroidCoordinateX = (int)(xA + xB) / 2;
+      int centroidCoordinateY = (int)(yA + yB) / 2;
 
-      start = bresenhamAlgorithm(xA, yA, xB, yB, LINE, centroidCoordinates);
+      point* p1 = createPoint(xA, yA, centroidCoordinateX, centroidCoordinateY);
+      point* p2 = createPoint(xB, yB, centroidCoordinateX, centroidCoordinateY);
+      firstLineVertices = pushLineVertices(p1, p2, centroidCoordinateX, centroidCoordinateY);
+
+      start = bresenhamAlgorithm(xA, yA, xB, yB, LINE);
       printf("Line vertices: xAyA(%.0lf,%.0lf) | xByB(%.0lf,%.0lf)\n",xA,yA,xB,yB);
       drawPoints(start);
       click1 = false;
@@ -534,15 +560,23 @@ void displaySquares(void){
     glColor3f (1.0, 1.0, 1.0); 
     
     if(click1 && click2){
-      int* centroidCoordinates = getLineOrSquareCentroid(xA, yA, xB, yB);
+      int centroidCoordinateX = (int)(xA + xB) / 2;
+      int centroidCoordinateY = (int)(yA + yB) / 2;
 
-      start = bresenhamAlgorithm(xA, yA, xB, yA, SQUARE, centroidCoordinates);
+      point* p1 = createPoint(xA, yA, centroidCoordinateX, centroidCoordinateY);
+      point* p2 = createPoint(xB, yB, centroidCoordinateX, centroidCoordinateY);
+      point* p3 = createPoint(xB, yA, centroidCoordinateX, centroidCoordinateY);
+      point* p4 = createPoint(xA, yB, centroidCoordinateX, centroidCoordinateY);
+
+      firstSquareVertices = pushSquareVertices(p1, p2, p3, p4, centroidCoordinateX, centroidCoordinateY);
+
+      start = bresenhamAlgorithm(xA, yA, xB, yA, SQUARE);
       drawPoints(start);
-      start = bresenhamAlgorithm(xB, yA, xB, yB, SQUARE, centroidCoordinates);
+      start = bresenhamAlgorithm(xB, yA, xB, yB, SQUARE);
       drawPoints(start);
-      start = bresenhamAlgorithm(xB, yB, xA, yB, SQUARE, centroidCoordinates);
+      start = bresenhamAlgorithm(xB, yB, xA, yB, SQUARE);
       drawPoints(start);
-      start = bresenhamAlgorithm(xA, yB, xA, yA, SQUARE, centroidCoordinates);
+      start = bresenhamAlgorithm(xA, yB, xA, yA, SQUARE);
       drawPoints(start);
       printf("Square vertices:\nxAyA(%.0lf,%.0lf) | xAyB(%.0lf,%.0lf)\nxAyB(%.0lf,%.0lf) | xByB(%.0lf,%.0lf)\nxByB(%.0lf,%.0lf) | xAyB(%.0lf,%.0lf)\nxAyB(%.0lf,%.0lf) | xAyA(%.0lf,%.0lf)\n",xA,yA,xB,yA,xB,yA,xB,yB,xB,yB,xA,yB,xA,yB,xA,yA);
       click1 = false;
@@ -560,13 +594,20 @@ void displayTriangles(void){
   glColor3f (1.0, 1.0, 1.0); 
   
   if(click1 && click2 && click3){
-    int* centroidCoordinates = getTriangleCentroid(xA, yA, xB, yB, xC, yC);
+    int centroidCoordinateX = (int)(xA + xB + xC) / 3;
+    int centroidCoordinateY = (int)(yA + yB + yC) / 3;
 
-    start = bresenhamAlgorithm(xA, yA, xB, yB, TRIANGLE, centroidCoordinates);
+    point* p1 = createPoint(xA, yA, centroidCoordinateX, centroidCoordinateY);
+    point* p2 = createPoint(xB, yB, centroidCoordinateX, centroidCoordinateY);
+    point* p3 = createPoint(xC, yC, centroidCoordinateX, centroidCoordinateY);
+
+    firstTriangleVertices = pushTriangleVertices(p1, p2, p3, centroidCoordinateX, centroidCoordinateY);
+
+    start = bresenhamAlgorithm(xA, yA, xB, yB, TRIANGLE);
     drawPoints(start);
-    start = bresenhamAlgorithm(xB, yB, xC, yC, TRIANGLE, centroidCoordinates);
+    start = bresenhamAlgorithm(xB, yB, xC, yC, TRIANGLE);
     drawPoints(start);
-    start = bresenhamAlgorithm(xC, yC, xA, yA, TRIANGLE, centroidCoordinates);
+    start = bresenhamAlgorithm(xC, yC, xA, yA, TRIANGLE);
     drawPoints(start);
     printf("Triangle vertices:\nxAyA(%.0lf,%.0lf) | xAyB(%.0lf,%.0lf)\nxAyB(%.0lf,%.0lf) | xByB(%.0lf,%.0lf)\nxByB(%.0lf,%.0lf) | xAyB(%.0lf,%.0lf)\n",xA,yA,xB,yB,xB,yB,xC,yC,xC,yC,xA,yA);
     click1 = false;
@@ -584,11 +625,10 @@ void displayPolygons(void){
     glColor3f (1.0, 1.0, 1.0); 
     
     if(click1 && click2){
-      int centroidCoordinates[2] = {0, 0};
       if(coordinateIsInClosingArea(xB, yB)){
         click1 = false;
         isFirstLine = true;
-        start = bresenhamAlgorithm(polygonStartVerticeX, polygonStartVerticeY, xA, yA, POLYGON, centroidCoordinates);
+        start = bresenhamAlgorithm(polygonStartVerticeX, polygonStartVerticeY, xA, yA, POLYGON);
         printf("Line poins: xAyA(%.0lf,%.0lf) | xByB(%.0lf,%.0lf)\n",xA, yA, polygonStartVerticeX,polygonStartVerticeY);
         drawPoints(start);
         point* pnt = polygonPoints;
@@ -600,7 +640,7 @@ void displayPolygons(void){
         }
         polygonPoints = resetPolygonList();
       } else {
-        start = bresenhamAlgorithm(xA, yA, xB, yB, POLYGON, centroidCoordinates);
+        start = bresenhamAlgorithm(xA, yA, xB, yB, POLYGON);
         polygonPoints = pushPolygonVertice(xB, yB);
         drawPoints(start);
         printf("Line poins: xAyA(%.0lf,%.0lf) | xByB(%.0lf,%.0lf)\n",xA,yA,xB,yB);
@@ -634,8 +674,7 @@ void displayCircles(void){
 
 
 void drawPoints(point* firstPoint){
-  point* pnt;
-  pnt = firstPoint;
+  point* pnt = firstPoint;
   glBegin(GL_POINTS); 
     while(pnt != NULL){
       glVertex2i(pnt->x,pnt->y);
@@ -643,11 +682,25 @@ void drawPoints(point* firstPoint){
       pnt = pnt->next;
     }
   glEnd();  
+
+  lineVertices* line = firstLineVertices;
+  while(line != NULL){
+    printf("x1y1(%d %d) | x2y2(%d %d)\n",line->v1->x,line->v1->y,line->v2->x,line->v2->y);
+    line = line->next;
+  }
 }
 
 void clearScreen(){
   start = resetList();
   drawPoints(start);
+}
+
+void resetLists(){
+  clearScreen();
+  polygonPoints = resetPolygonList();
+  firstTriangleVertices = resetTriangleList();
+  firstSquareVertices = resetSquareList();
+  firstLineVertices = resetLineList();
 }
 
 void resetClicks(){
@@ -667,37 +720,66 @@ double calculateCircleRadius(double xA, double yA, double xB, double yB) {
 }
 
 void applyTranslation(point* pnt, int direction) {
-  while(pnt != NULL){
-    translate(pnt->x, pnt->y, DEFAULT_DISPLACEMENT, direction);
-    pnt = pnt->next;
+  lineVertices* line = firstLineVertices;
+  while(line != NULL){
+    translate(line->v1->x, line->v1->y, DEFAULT_DISPLACEMENT, direction);
+    translate(line->v2->x, line->v2->y, DEFAULT_DISPLACEMENT, direction);
+
+    start = bresenhamAlgorithm(line->v1->x, line->v1->y, line->v2->x, line->v2->y, LINE);
+    line = line->next;
   }
 }
 
 void applyRotation(point* pnt, int direction) {
-  while(pnt != NULL){
-    translate(pnt->x, pnt->y, pnt->centroidCoordinateX, LEFT);
-    translate(pnt->x, pnt->y, pnt->centroidCoordinateY, DOWN);
-    rotate(pnt->x, pnt->y, DEFAULT_ANGLE, direction);
-    translate(pnt->x, pnt->y, pnt->centroidCoordinateX, RIGHT);
-    translate(pnt->x, pnt->y, pnt->centroidCoordinateY, UP);
-    pnt = pnt->next;
+  lineVertices* line = firstLineVertices;
+  while(line != NULL) {
+    printf("x1y1(%d %d) ", line->v1->x, line->v1->y);
+    printf("x2y2(%d %d)\n", line->v2->x, line->v2->y);
+    printf("centroid(%d %d)\n", line->centroidCoordinateX, line->centroidCoordinateY);
+    printf("Movendo centroide para origem... ");
+    translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateX, LEFT);
+    translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateY, DOWN);
+    printf("x1y1(%d %d) ", line->v1->x, line->v1->y);
+    translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateX, LEFT);
+    translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateY, DOWN);
+    printf("x2y2(%d %d)\n", line->v2->x, line->v2->y);
+    printf("Rotacionando... ");
+    rotate(line->v1->x, line->v1->y, DEFAULT_ANGLE, direction);
+    printf("x1y1(%d %d) ", line->v1->x, line->v1->y);
+    rotate(line->v2->x, line->v2->y, DEFAULT_ANGLE, direction);
+    printf("x2y2(%d %d)\n", line->v2->x, line->v2->y);
+    printf("Voltando centroide para posicao original... ");
+    translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateX, RIGHT);
+    translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateY, UP);
+    printf("x1y1(%d %d) ", line->v1->x, line->v1->y);
+    translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateX, RIGHT);
+    translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateY, UP);
+    printf("x2y2(%d %d)\n", line->v2->x, line->v2->y);
+
+    start = bresenhamAlgorithm(line->v1->x, line->v1->y, line->v2->x, line->v2->y, LINE);
+    line = line->next;
   }
+
 }
 
-int* getLineOrSquareCentroid(double xA, double yA, double xB, double yB) {
-  int centroidCoordinates[2];
-  centroidCoordinates[0] = (int)(xA + xB) / 2;
-  centroidCoordinates[1] = (int)(yA + yB) / 2;
+void applyScale(int quantity){
+  lineVertices* line = firstLineVertices;
+  while(line != NULL) {
+    translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateX, LEFT);
+    translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateY, DOWN);
+    translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateX, LEFT);
+    translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateY, DOWN);
+    scale(line->v1->x, line->v1->y, quantity);
+    scale(line->v2->x, line->v2->y, quantity);
+    translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateX, RIGHT);
+    translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateY, UP);
+    translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateX, RIGHT);
+    translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateY, UP);
 
-  return centroidCoordinates;
-}
-
-int* getTriangleCentroid(double xA, double yA, double xB, double yB, double xC, double yC) {
-  int centroidCoordinates[2];
-  centroidCoordinates[0] = (int)(xA + xB + xC) / 3;
-  centroidCoordinates[1] = (int)(yA + yB + yC) / 3;
-
-  return centroidCoordinates;
+    start = bresenhamAlgorithm(line->v1->x, line->v1->y, line->v2->x, line->v2->y, LINE);
+    
+    line = line->next;
+  } 
 }
 
 void invalidKeyMessage() {
@@ -745,4 +827,17 @@ void backToLastMode() {
       glutDisplayFunc(displayLines);
       break;
   }
+}
+
+point* createPoint(double x, double y, int centroidCoordinateX, int centroidCoordinateY) {
+  point* pnt = new point;
+  pnt->x = x;
+  pnt->y = y;
+  pnt->next = NULL;
+  pnt->drawn = false;
+  pnt->isVertice = true;
+  pnt->centroidCoordinateX = centroidCoordinateX;
+  pnt->centroidCoordinateY = centroidCoordinateY;
+
+  return pnt;
 }
