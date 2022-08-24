@@ -94,7 +94,7 @@ void applyScale(int isTo);
 void invalidKeyMessage(void);
 
 int main(int argc, char** argv) {
-    afirstLineVertices = NULL;
+    firstLineVertices = NULL;
     glutInit(&argc, argv); 
     glutInitDisplayMode (GLUT_DOUBLE | GLUT_RGB); 
     glutInitWindowSize (width, height);  
@@ -272,20 +272,20 @@ void processSpecialKeys(int key, int x, int y) {
         point* aux = start;
         switch (activeTransformation) {
           case TRANSLATE:
-            applyTranslation(aux, UP);
             glClear(GL_COLOR_BUFFER_BIT);
+            clearScreen();
+            applyTranslation(aux, UP);
             drawPoints(start);
-            glutSwapBuffers();
             break;
           case ROTATE:
             printf("Invalid move!\n");
             printf("Use arrow left to rotate clockwise or arrow right to rotate counterclockwise!\n");
             break;
           case SCALE:
-            applyScale(DEFAULT_INCREASE_SCALE);
             glClear(GL_COLOR_BUFFER_BIT);
+            clearScreen();
+            applyScale(DEFAULT_INCREASE_SCALE);
             drawPoints(start);
-            glutSwapBuffers();
             break;
           // case SHEAR:
           //   applyShear(aux);
@@ -298,26 +298,27 @@ void processSpecialKeys(int key, int x, int y) {
             break;
         }
       }
+      glutSwapBuffers();
       break;
     case GLUT_KEY_DOWN:
       if(isToApplyGeometricTransformations) {
         point* aux = start;
         switch (activeTransformation) {
           case TRANSLATE:
-            applyTranslation(aux, DOWN);
             glClear(GL_COLOR_BUFFER_BIT);
+            clearScreen();
+            applyTranslation(aux, DOWN);
             drawPoints(start);
-            glutSwapBuffers();
             break;
           case ROTATE:
             printf("Invalid move!\n");
             printf("Use arrow left to rotate clockwise or arrow right to rotate counterclockwise!\n");
             break;
           case SCALE:
-            applyScale(DEFAULT_DECREASE_SCALE);
             glClear(GL_COLOR_BUFFER_BIT);
+            clearScreen();
+            applyScale(DEFAULT_DECREASE_SCALE);
             drawPoints(start);
-            glutSwapBuffers();
             break;
           // case SHEAR:
           //   applyShear(aux);
@@ -330,22 +331,23 @@ void processSpecialKeys(int key, int x, int y) {
             break;
         }
       }
+      glutSwapBuffers();
       break;
     case GLUT_KEY_LEFT:
       if(isToApplyGeometricTransformations) {
         point* aux = start;
         switch (activeTransformation) {
           case TRANSLATE:
-            applyTranslation(aux, LEFT);
             glClear(GL_COLOR_BUFFER_BIT);
+            clearScreen();
+            applyTranslation(aux, LEFT);
             drawPoints(start);
-            glutSwapBuffers();
             break;
           case ROTATE:
-            applyRotation(aux, COUNTERCLOCKWISE);
             glClear(GL_COLOR_BUFFER_BIT);
+            clearScreen();
+            applyRotation(aux, COUNTERCLOCKWISE);
             drawPoints(start);
-            glutSwapBuffers();
             break;
           case SCALE:
             printf("Invalid move!\n");
@@ -362,22 +364,23 @@ void processSpecialKeys(int key, int x, int y) {
             break;
         }
       }
+      glutSwapBuffers();
       break;
     case GLUT_KEY_RIGHT:
       if(isToApplyGeometricTransformations) {
           point* aux = start;
           switch (activeTransformation) {
             case TRANSLATE:
-              applyTranslation(aux, RIGHT);
               glClear(GL_COLOR_BUFFER_BIT);
-              drawPoints(start);
-              glutSwapBuffers();
+              clearScreen();
+              applyTranslation(aux, RIGHT);
+              drawPoints(start);;
               break;
             case ROTATE:
-              applyRotation(aux, CLOCKWISE);
               glClear(GL_COLOR_BUFFER_BIT);
-              drawPoints(start);
-              glutSwapBuffers();
+              clearScreen();
+              applyRotation(aux, CLOCKWISE);
+              drawPoints(start);;
               break;
             case SCALE:
               printf("Invalid move!\n");
@@ -394,9 +397,12 @@ void processSpecialKeys(int key, int x, int y) {
               break;
           }
         }
+        glutSwapBuffers();
       break;
     default:
       break;
+    
+
   }
 }
 
@@ -542,7 +548,7 @@ void displayLines(void){
       point* p2 = createPoint(xB, yB, centroidCoordinateX, centroidCoordinateY);
       firstLineVertices = pushLineVertices(p1, p2, centroidCoordinateX, centroidCoordinateY);
 
-      start = bresenhamAlgorithm(xA, yA, xB, yB, LINE);
+      start = bresenhamAlgorithm(xA, yA, xB, yB);
       printf("Line vertices: xAyA(%.0lf,%.0lf) | xByB(%.0lf,%.0lf)\n",xA,yA,xB,yB);
       drawPoints(start);
       click1 = false;
@@ -570,13 +576,13 @@ void displaySquares(void){
 
       firstSquareVertices = pushSquareVertices(p1, p2, p3, p4, centroidCoordinateX, centroidCoordinateY);
 
-      start = bresenhamAlgorithm(xA, yA, xB, yA, SQUARE);
+      start = bresenhamAlgorithm(xA, yA, xB, yA);
       drawPoints(start);
-      start = bresenhamAlgorithm(xB, yA, xB, yB, SQUARE);
+      start = bresenhamAlgorithm(xB, yA, xB, yB);
       drawPoints(start);
-      start = bresenhamAlgorithm(xB, yB, xA, yB, SQUARE);
+      start = bresenhamAlgorithm(xB, yB, xA, yB);
       drawPoints(start);
-      start = bresenhamAlgorithm(xA, yB, xA, yA, SQUARE);
+      start = bresenhamAlgorithm(xA, yB, xA, yA);
       drawPoints(start);
       printf("Square vertices:\nxAyA(%.0lf,%.0lf) | xAyB(%.0lf,%.0lf)\nxAyB(%.0lf,%.0lf) | xByB(%.0lf,%.0lf)\nxByB(%.0lf,%.0lf) | xAyB(%.0lf,%.0lf)\nxAyB(%.0lf,%.0lf) | xAyA(%.0lf,%.0lf)\n",xA,yA,xB,yA,xB,yA,xB,yB,xB,yB,xA,yB,xA,yB,xA,yA);
       click1 = false;
@@ -603,11 +609,11 @@ void displayTriangles(void){
 
     firstTriangleVertices = pushTriangleVertices(p1, p2, p3, centroidCoordinateX, centroidCoordinateY);
 
-    start = bresenhamAlgorithm(xA, yA, xB, yB, TRIANGLE);
+    start = bresenhamAlgorithm(xA, yA, xB, yB);
     drawPoints(start);
-    start = bresenhamAlgorithm(xB, yB, xC, yC, TRIANGLE);
+    start = bresenhamAlgorithm(xB, yB, xC, yC);
     drawPoints(start);
-    start = bresenhamAlgorithm(xC, yC, xA, yA, TRIANGLE);
+    start = bresenhamAlgorithm(xC, yC, xA, yA);
     drawPoints(start);
     printf("Triangle vertices:\nxAyA(%.0lf,%.0lf) | xAyB(%.0lf,%.0lf)\nxAyB(%.0lf,%.0lf) | xByB(%.0lf,%.0lf)\nxByB(%.0lf,%.0lf) | xAyB(%.0lf,%.0lf)\n",xA,yA,xB,yB,xB,yB,xC,yC,xC,yC,xA,yA);
     click1 = false;
@@ -628,7 +634,7 @@ void displayPolygons(void){
       if(coordinateIsInClosingArea(xB, yB)){
         click1 = false;
         isFirstLine = true;
-        start = bresenhamAlgorithm(polygonStartVerticeX, polygonStartVerticeY, xA, yA, POLYGON);
+        start = bresenhamAlgorithm(polygonStartVerticeX, polygonStartVerticeY, xA, yA);
         printf("Line poins: xAyA(%.0lf,%.0lf) | xByB(%.0lf,%.0lf)\n",xA, yA, polygonStartVerticeX,polygonStartVerticeY);
         drawPoints(start);
         point* pnt = polygonPoints;
@@ -640,7 +646,7 @@ void displayPolygons(void){
         }
         polygonPoints = resetPolygonList();
       } else {
-        start = bresenhamAlgorithm(xA, yA, xB, yB, POLYGON);
+        start = bresenhamAlgorithm(xA, yA, xB, yB);
         polygonPoints = pushPolygonVertice(xB, yB);
         drawPoints(start);
         printf("Line poins: xAyA(%.0lf,%.0lf) | xByB(%.0lf,%.0lf)\n",xA,yA,xB,yB);
@@ -682,12 +688,6 @@ void drawPoints(point* firstPoint){
       pnt = pnt->next;
     }
   glEnd();  
-
-  lineVertices* line = firstLineVertices;
-  while(line != NULL){
-    printf("x1y1(%d %d) | x2y2(%d %d)\n",line->v1->x,line->v1->y,line->v2->x,line->v2->y);
-    line = line->next;
-  }
 }
 
 void clearScreen(){
@@ -724,39 +724,70 @@ void applyTranslation(point* pnt, int direction) {
   while(line != NULL){
     translate(line->v1->x, line->v1->y, DEFAULT_DISPLACEMENT, direction);
     translate(line->v2->x, line->v2->y, DEFAULT_DISPLACEMENT, direction);
+    line->centroidCoordinateX = (int)(line->v1->x + line->v2->x) / 2;
+    line->centroidCoordinateY = (int)(line->v1->y + line->v2->y) / 2;
 
-    start = bresenhamAlgorithm(line->v1->x, line->v1->y, line->v2->x, line->v2->y, LINE);
+    start = bresenhamAlgorithm(line->v1->x, line->v1->y, line->v2->x, line->v2->y);
     line = line->next;
+  }
+
+  squareVertices* square = firstSquareVertices;
+  while(square != NULL){
+    translate(square->v1->x, square->v1->y, DEFAULT_DISPLACEMENT, direction);
+    translate(square->v2->x, square->v2->y, DEFAULT_DISPLACEMENT, direction);
+    translate(square->v3->x, square->v3->y, DEFAULT_DISPLACEMENT, direction);
+    translate(square->v4->x, square->v4->y, DEFAULT_DISPLACEMENT, direction);
+    square->centroidCoordinateX = (int)(square->v1->x + square->v2->x) / 2;
+    square->centroidCoordinateY = (int)(square->v1->y + square->v2->y) / 2;
+
+    start = bresenhamAlgorithm(square->v1->x, square->v1->y, square->v3->x, square->v3->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(square->v3->x, square->v3->y, square->v2->x, square->v2->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(square->v2->x, square->v2->y, square->v4->x, square->v4->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(square->v4->x, square->v4->y, square->v1->x, square->v1->y);
+    drawPoints(start);
+
+    square = square->next;
+  }
+
+  triangleVertices* triangle = firstTriangleVertices;
+  while(triangle != NULL){
+    translate(triangle->v1->x, triangle->v1->y, DEFAULT_DISPLACEMENT, direction);
+    translate(triangle->v2->x, triangle->v2->y, DEFAULT_DISPLACEMENT, direction);
+    translate(triangle->v3->x, triangle->v3->y, DEFAULT_DISPLACEMENT, direction);
+    triangle->centroidCoordinateX = (int)(triangle->v1->x + triangle->v2->x + triangle->v3->x) / 3;
+    triangle->centroidCoordinateY = (int)(triangle->v1->y + triangle->v2->y + triangle->v3->y) / 3;
+
+    start = bresenhamAlgorithm(triangle->v1->x, triangle->v1->y, triangle->v2->x, triangle->v2->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(triangle->v2->x, triangle->v2->y, triangle->v3->x, triangle->v3->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(triangle->v3->x, triangle->v3->y, triangle->v1->x, triangle->v1->y);
+    drawPoints(start);
+
+    triangle = triangle->next;
   }
 }
 
 void applyRotation(point* pnt, int direction) {
   lineVertices* line = firstLineVertices;
   while(line != NULL) {
-    printf("x1y1(%d %d) ", line->v1->x, line->v1->y);
-    printf("x2y2(%d %d)\n", line->v2->x, line->v2->y);
-    printf("centroid(%d %d)\n", line->centroidCoordinateX, line->centroidCoordinateY);
-    printf("Movendo centroide para origem... ");
-    translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateX, LEFT);
-    translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateY, DOWN);
-    printf("x1y1(%d %d) ", line->v1->x, line->v1->y);
-    translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateX, LEFT);
-    translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateY, DOWN);
-    printf("x2y2(%d %d)\n", line->v2->x, line->v2->y);
-    printf("Rotacionando... ");
+    int displacementX = line->centroidCoordinateX;
+    int displacementY = line->centroidCoordinateY;
+    translate(line->v1->x, line->v1->y, displacementX, LEFT);
+    translate(line->v1->x, line->v1->y, displacementY, DOWN);
+    translate(line->v2->x, line->v2->y, displacementX, LEFT);
+    translate(line->v2->x, line->v2->y, displacementY, DOWN);
     rotate(line->v1->x, line->v1->y, DEFAULT_ANGLE, direction);
-    printf("x1y1(%d %d) ", line->v1->x, line->v1->y);
     rotate(line->v2->x, line->v2->y, DEFAULT_ANGLE, direction);
-    printf("x2y2(%d %d)\n", line->v2->x, line->v2->y);
-    printf("Voltando centroide para posicao original... ");
-    translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateX, RIGHT);
-    translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateY, UP);
-    printf("x1y1(%d %d) ", line->v1->x, line->v1->y);
-    translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateX, RIGHT);
-    translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateY, UP);
-    printf("x2y2(%d %d)\n", line->v2->x, line->v2->y);
+    translate(line->v1->x, line->v1->y, displacementX, RIGHT);
+    translate(line->v1->x, line->v1->y, displacementY, UP);
+    translate(line->v2->x, line->v2->y, displacementX, RIGHT);
+    translate(line->v2->x, line->v2->y, displacementY, UP);
 
-    start = bresenhamAlgorithm(line->v1->x, line->v1->y, line->v2->x, line->v2->y, LINE);
+    start = bresenhamAlgorithm(line->v1->x, line->v1->y, line->v2->x, line->v2->y);
     line = line->next;
   }
 
@@ -765,18 +796,18 @@ void applyRotation(point* pnt, int direction) {
 void applyScale(int quantity){
   lineVertices* line = firstLineVertices;
   while(line != NULL) {
-    translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateX, LEFT);
-    translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateY, DOWN);
-    translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateX, LEFT);
-    translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateY, DOWN);
+    // translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateX, LEFT);
+    // translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateY, DOWN);
+    // translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateX, LEFT);
+    // translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateY, DOWN);
     scale(line->v1->x, line->v1->y, quantity);
     scale(line->v2->x, line->v2->y, quantity);
-    translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateX, RIGHT);
-    translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateY, UP);
-    translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateX, RIGHT);
-    translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateY, UP);
+    // translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateX, RIGHT);
+    // translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateY, UP);
+    // translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateX, RIGHT);
+    // translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateY, UP);
 
-    start = bresenhamAlgorithm(line->v1->x, line->v1->y, line->v2->x, line->v2->y, LINE);
+    start = bresenhamAlgorithm(line->v1->x, line->v1->y, line->v2->x, line->v2->y);
     
     line = line->next;
   } 
