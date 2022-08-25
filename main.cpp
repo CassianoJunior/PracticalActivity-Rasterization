@@ -2,7 +2,7 @@
 #include <GL/glu.h>
 #include <GL/glut.h>
 
-#include "functions.h"
+#include "algorithms.h"
 
 #define REGION_TO_CLOSE_POLYGON 3
 #define DEFAULT_DISPLACEMENT 5
@@ -94,7 +94,6 @@ void applyScale(int isTo);
 void invalidKeyMessage(void);
 
 int main(int argc, char** argv) {
-    firstLineVertices = NULL;
     glutInit(&argc, argv); 
     glutInitDisplayMode (GLUT_DOUBLE | GLUT_RGB); 
     glutInitWindowSize (width, height);  
@@ -108,8 +107,8 @@ int main(int argc, char** argv) {
     glutDisplayFunc(displayLines); 
 
     freeMode 
-      ? printf("Free mode active!\n")
-      : printf("Free mode desactive!\n");
+      ? printf("Free mode ON!\n")
+      : printf("Free mode OFF!\n");
 
     glutMainLoop(); 
     
@@ -297,8 +296,8 @@ void processSpecialKeys(int key, int x, int y) {
           default:
             break;
         }
+        glutSwapBuffers();
       }
-      glutSwapBuffers();
       break;
     case GLUT_KEY_DOWN:
       if(isToApplyGeometricTransformations) {
@@ -330,8 +329,8 @@ void processSpecialKeys(int key, int x, int y) {
           default:
             break;
         }
+        glutSwapBuffers();
       }
-      glutSwapBuffers();
       break;
     case GLUT_KEY_LEFT:
       if(isToApplyGeometricTransformations) {
@@ -363,8 +362,8 @@ void processSpecialKeys(int key, int x, int y) {
           default:
             break;
         }
+        glutSwapBuffers();  
       }
-      glutSwapBuffers();
       break;
     case GLUT_KEY_RIGHT:
       if(isToApplyGeometricTransformations) {
@@ -396,8 +395,8 @@ void processSpecialKeys(int key, int x, int y) {
             default:
               break;
           }
+          glutSwapBuffers();
         }
-        glutSwapBuffers();
       break;
     default:
       break;
@@ -546,7 +545,7 @@ void displayLines(void){
 
       point* p1 = createPoint(xA, yA, centroidCoordinateX, centroidCoordinateY);
       point* p2 = createPoint(xB, yB, centroidCoordinateX, centroidCoordinateY);
-      firstLineVertices = pushLineVertices(p1, p2, centroidCoordinateX, centroidCoordinateY);
+      firstLine = pushLine(p1, p2, centroidCoordinateX, centroidCoordinateY);
 
       start = bresenhamAlgorithm(xA, yA, xB, yB);
       printf("Line vertices: xAyA(%.0lf,%.0lf) | xByB(%.0lf,%.0lf)\n",xA,yA,xB,yB);
@@ -574,7 +573,7 @@ void displaySquares(void){
       point* p3 = createPoint(xB, yA, centroidCoordinateX, centroidCoordinateY);
       point* p4 = createPoint(xA, yB, centroidCoordinateX, centroidCoordinateY);
 
-      firstSquareVertices = pushSquareVertices(p1, p2, p3, p4, centroidCoordinateX, centroidCoordinateY);
+      firstSquare = pushSquare(p1, p2, p3, p4, centroidCoordinateX, centroidCoordinateY);
 
       start = bresenhamAlgorithm(xA, yA, xB, yA);
       drawPoints(start);
@@ -607,7 +606,7 @@ void displayTriangles(void){
     point* p2 = createPoint(xB, yB, centroidCoordinateX, centroidCoordinateY);
     point* p3 = createPoint(xC, yC, centroidCoordinateX, centroidCoordinateY);
 
-    firstTriangleVertices = pushTriangleVertices(p1, p2, p3, centroidCoordinateX, centroidCoordinateY);
+    firstTriangle = pushTriangle(p1, p2, p3, centroidCoordinateX, centroidCoordinateY);
 
     start = bresenhamAlgorithm(xA, yA, xB, yB);
     drawPoints(start);
@@ -644,6 +643,7 @@ void displayPolygons(void){
           printf("Point %d: xy(%d,%d)\n",i++,pnt->x,pnt->y);
           pnt = pnt->next;
         }
+        firstPolygon = pushPolygon(polygonPoints);
         polygonPoints = resetPolygonList();
       } else {
         start = bresenhamAlgorithm(xA, yA, xB, yB);
@@ -666,6 +666,10 @@ void displayCircles(void){
   
   if(click1 && click2){
     double radius = calculateCircleRadius(xA, yA, xB, yB);
+
+    point* center = createPoint(xA, yA, xA, yA);
+    firstCircle = pushCircle(center, (int)radius);
+
     start = bresenhamToRasterizeCircles(xA, yA, radius);
     drawPoints(start);
     printf("Circle center: xy(%.0lf,%.0lf)\n",xA,yA);
@@ -698,9 +702,9 @@ void clearScreen(){
 void resetLists(){
   clearScreen();
   polygonPoints = resetPolygonList();
-  firstTriangleVertices = resetTriangleList();
-  firstSquareVertices = resetSquareList();
-  firstLineVertices = resetLineList();
+  firstTriangle = resetTriangleList();
+  firstSquare= resetSquareList();
+  firstLine= resetLineList();
 }
 
 void resetClicks(){
@@ -720,7 +724,7 @@ double calculateCircleRadius(double xA, double yA, double xB, double yB) {
 }
 
 void applyTranslation(point* pnt, int direction) {
-  lineVertices* line = firstLineVertices;
+  line* line = firstLine;
   while(line != NULL){
     translate(line->v1->x, line->v1->y, DEFAULT_DISPLACEMENT, direction);
     translate(line->v2->x, line->v2->y, DEFAULT_DISPLACEMENT, direction);
@@ -728,10 +732,11 @@ void applyTranslation(point* pnt, int direction) {
     line->centroidCoordinateY = (int)(line->v1->y + line->v2->y) / 2;
 
     start = bresenhamAlgorithm(line->v1->x, line->v1->y, line->v2->x, line->v2->y);
+    drawPoints(start);
     line = line->next;
   }
 
-  squareVertices* square = firstSquareVertices;
+  square* square = firstSquare;
   while(square != NULL){
     translate(square->v1->x, square->v1->y, DEFAULT_DISPLACEMENT, direction);
     translate(square->v2->x, square->v2->y, DEFAULT_DISPLACEMENT, direction);
@@ -752,7 +757,7 @@ void applyTranslation(point* pnt, int direction) {
     square = square->next;
   }
 
-  triangleVertices* triangle = firstTriangleVertices;
+  triangle* triangle = firstTriangle;
   while(triangle != NULL){
     translate(triangle->v1->x, triangle->v1->y, DEFAULT_DISPLACEMENT, direction);
     translate(triangle->v2->x, triangle->v2->y, DEFAULT_DISPLACEMENT, direction);
@@ -769,10 +774,43 @@ void applyTranslation(point* pnt, int direction) {
 
     triangle = triangle->next;
   }
+
+  polygon* polygon = firstPolygon;
+  while(polygon != NULL){
+    point* pnt = polygon->listOfVertices;
+    while(pnt != NULL){
+      translate(pnt->x, pnt->y, DEFAULT_DISPLACEMENT, direction);
+      pnt = pnt->next;
+    }
+
+    pnt = polygon->listOfVertices;
+    point* aux = pnt;
+    while(pnt->next != NULL){
+      start = bresenhamAlgorithm(pnt->x, pnt->y, pnt->next->x, pnt->next->y);
+      drawPoints(start);
+      if(pnt->next->next == NULL) aux = pnt->next;
+      pnt = pnt->next;
+    }
+
+    start = bresenhamAlgorithm(polygon->listOfVertices->x, polygon->listOfVertices->y, aux->x, aux->y);
+    drawPoints(start);
+
+    polygon = polygon->next;
+  }
+
+  circle* circle = firstCircle;
+  while(circle != NULL){
+    translate(circle->center->x, circle->center->y, DEFAULT_DISPLACEMENT, direction);
+
+    start = bresenhamToRasterizeCircles(circle->center->x, circle->center->y, circle->radius);
+    drawPoints(start);
+
+    circle = circle->next;
+  }
 }
 
 void applyRotation(point* pnt, int direction) {
-  lineVertices* line = firstLineVertices;
+  line* line = firstLine;
   while(line != NULL) {
     int displacementX = line->centroidCoordinateX;
     int displacementY = line->centroidCoordinateY;
@@ -788,13 +826,14 @@ void applyRotation(point* pnt, int direction) {
     translate(line->v2->x, line->v2->y, displacementY, UP);
 
     start = bresenhamAlgorithm(line->v1->x, line->v1->y, line->v2->x, line->v2->y);
+    drawPoints(start);
     line = line->next;
   }
 
 }
 
 void applyScale(int quantity){
-  lineVertices* line = firstLineVertices;
+  line* line = firstLine;
   while(line != NULL) {
     // translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateX, LEFT);
     // translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateY, DOWN);
@@ -808,6 +847,7 @@ void applyScale(int quantity){
     // translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateY, UP);
 
     start = bresenhamAlgorithm(line->v1->x, line->v1->y, line->v2->x, line->v2->y);
+    drawPoints(start);
     
     line = line->next;
   } 
