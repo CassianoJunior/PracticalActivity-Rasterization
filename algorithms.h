@@ -246,7 +246,3 @@ void translateToRealCoordinates(double originX, double originY) {
     pnt = pnt->next;
   }
 }
-
-void floodFill(){
-
-}

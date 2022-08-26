@@ -7,8 +7,9 @@
 #define REGION_TO_CLOSE_POLYGON 3
 #define DEFAULT_DISPLACEMENT 5
 #define DEFAULT_ANGLE 5
-#define DEFAULT_INCREASE_SCALE 1.1
-#define DEFAULT_DECREASE_SCALE 0.9
+#define DEFAULT_INCREASE_SCALE 1.2
+#define DEFAULT_DECREASE_SCALE 0.8
+#define DEFAULT_SHEAR 1
 
 #define f 102  // Alternar modo de desenho livre (Nao limpa a tela quando troca o modo de desenho)
 #define BACKSPACE 8 // Limpar a tela
@@ -46,6 +47,7 @@
 #define c 99 // Aplicar cisalhamento no modo de transformacoes geometricas
 #define m 109 // Aplicar espelhamento no modo de transformacoes geometricas
 
+#define SPACE 32 // Acionar algoritmo flood fill
 
 double xA, yA, xB, yB, xC, yC;
 double polygonStartVerticeX, polygonStartVerticeY;
@@ -72,6 +74,7 @@ void displayPolygons(void);
   bool coordinateIsInClosingArea(double x, double y);
 void displayCircles(void);
   double calculateCircleRadius(double xA, double yA, double xB, double yB);
+void displayToFloodFill(void);
 
 void keyboard(unsigned char key, int x, int y);
   void backToLastMode(void);
@@ -92,9 +95,14 @@ line* createLine(point* v1, point* v2);
 
 void applyTranslation(point* aux, int direction);
 void applyRotation(point* aux, int direction);
-void applyScale(int quantity);
+void applyScale(double quantity);
 void applyMirror(int axis, int direction);
   line* mirrorLine(line* lineToMirror, int axis, int direction);
+void applyShearing(int quantity);
+
+void floodFill(int x, int y, float* oldColor, float* newColor);
+void mouseToFloodFill(int button, int state, int x, int y);
+
 
 void invalidKeyMessage(void);
 
@@ -211,6 +219,7 @@ void keyboard(unsigned char key, int x, int y){
       } else {
         activeTransformation = SCALE;
         printf("Ready to scale objects\n");
+        printf("Use arrow up to increase scale or arrow down to decrease scale!\n");
       }
       break;
     case t:
@@ -253,6 +262,7 @@ void keyboard(unsigned char key, int x, int y){
       } else {
         activeTransformation = SHEAR;
         printf("Ready to shear objects\n");
+        printf("Use arrow up to increase shear or arrow down to decrease shear!\n");
       }
       break;
     case m:
@@ -261,6 +271,12 @@ void keyboard(unsigned char key, int x, int y){
         printf("Ready to mirror objects\n");
         printf("Use up or down arrows to mirror in the Y axis and right or left arrows to mirror in the x axis!\n");
       }
+      break;
+    case SPACE:
+      printf("Select one object drawned to apply flood fill!\n");
+      glutMouseFunc(mouseToFloodFill);
+      glutDisplayFunc(displayToFloodFill);
+      resetClicks();
       break;
     default:
       invalidKeyMessage();
@@ -290,9 +306,12 @@ void processSpecialKeys(int key, int x, int y) {
             applyScale(DEFAULT_INCREASE_SCALE);
             drawPoints(start);
             break;
-          // case SHEAR:
-          //   applyShear(aux);
-          //   break;
+          case SHEAR:
+            glClear(GL_COLOR_BUFFER_BIT);
+            clearScreen();
+            applyShearing(DEFAULT_SHEAR);
+            drawPoints(start);
+            break;
           case MIRROR:
             glClear(GL_COLOR_BUFFER_BIT);
             clearScreen();
@@ -326,9 +345,12 @@ void processSpecialKeys(int key, int x, int y) {
             applyScale(DEFAULT_DECREASE_SCALE);
             drawPoints(start);
             break;
-          // case SHEAR:
-          //   applyShear(aux);
-          //   break;
+          case SHEAR:
+            glClear(GL_COLOR_BUFFER_BIT);
+            clearScreen();
+            applyShearing(-DEFAULT_SHEAR);
+            drawPoints(start);
+            break;
           case MIRROR:
             glClear(GL_COLOR_BUFFER_BIT);
             clearScreen();
@@ -362,9 +384,10 @@ void processSpecialKeys(int key, int x, int y) {
             printf("Invalid move!\n");
             printf("Use arrow up to increase scaling or arrow down to decrease scaling!\n");
             break;
-          // case SHEAR:
-          //   applyShear(aux);
-          //   break;
+          case SHEAR:
+            printf("Invalid move!\n");
+            printf("Use arrow up to increase shear or arrow down to decrease shear!\n");
+            break;
           case MIRROR:
             glClear(GL_COLOR_BUFFER_BIT);
             clearScreen();
@@ -398,9 +421,10 @@ void processSpecialKeys(int key, int x, int y) {
               printf("Invalid move!\n");
               printf("Use arrow up to increase scaling or arrow down to decrease scaling!\n");
               break;
-            // case SHEAR:
-            //   applyShear(aux);
-            //   break;
+            case SHEAR:
+              printf("Invalid move!\n");
+              printf("Use arrow up to increase shear or arrow down to decrease shear!\n");
+              break;
             case MIRROR:
               glClear(GL_COLOR_BUFFER_BIT);
               clearScreen();
@@ -549,6 +573,24 @@ void mouseWhileGeometricTranformationsIsOn(int button, int state, int x, int y){
   }
 }
 
+void mouseToFloodFill(int button, int state, int x, int y){
+  switch (button) {
+    case GLUT_LEFT_BUTTON:
+      if (state == GLUT_DOWN) {
+        if(!click1){
+          click1 = true;
+          xA = x;
+          yA = height - y;
+          printf("click: xAyA(%.0lf,%.0lf)\n",xA,yA);
+          glutPostRedisplay();
+        }
+      }
+      break;
+    default:
+      break;
+  }
+}
+
 void displayLines(void){
     glClear(GL_COLOR_BUFFER_BIT);
     glLoadIdentity();
@@ -659,7 +701,9 @@ void displayPolygons(void){
           printf("Point %d: xy(%d,%d)\n",i++,pnt->x,pnt->y);
           pnt = pnt->next;
         }
-        firstPolygon = pushPolygon(polygonPoints);
+        int centroidCoordinateX = getCentroidX(polygonPoints);
+        int centroidCoordinateY = getCentroidY(polygonPoints);
+        firstPolygon = pushPolygon(polygonPoints, centroidCoordinateX, centroidCoordinateY);
         polygonPoints = resetPolygonList();
       } else {
         start = bresenhamAlgorithm(xA, yA, xB, yB);
@@ -697,7 +741,22 @@ void displayCircles(void){
   glutSwapBuffers();
 }
 
-
+void displayToFloodFill(void){
+  glClear(GL_COLOR_BUFFER_BIT);
+  glLoadIdentity();
+  
+  glColor3f(1.0, 1.0, 1.0); 
+  printf("entrei");
+  click1 ? printf("SIm") : printf("Nao");
+  if(click1){
+    printf("Applying flood fill!\n");
+    click1 = false;
+    float oldColor[] = {0, 0, 0};
+    glPointSize(1);
+    float newColor[] = {0, 1, 1};
+    floodFill(xA, yA, oldColor, newColor);
+  }
+}
 
 void drawPoints(point* firstPoint){
   point* pnt = firstPoint;
@@ -848,25 +907,126 @@ void applyRotation(point* pnt, int direction) {
 
 }
 
-void applyScale(int quantity){
+void applyScale(double quantity){
   line* line = firstLine;
   while(line != NULL) {
-    // translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateX, LEFT);
-    // translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateY, DOWN);
-    // translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateX, LEFT);
-    // translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateY, DOWN);
+    translate(line->v1->x, line->v1->y, line->centroidCoordinateX, LEFT);
+    translate(line->v1->x, line->v1->y, line->centroidCoordinateY, DOWN);
+    translate(line->v2->x, line->v2->y, line->centroidCoordinateX, LEFT);
+    translate(line->v2->x, line->v2->y, line->centroidCoordinateY, DOWN);
     scale(line->v1->x, line->v1->y, quantity);
     scale(line->v2->x, line->v2->y, quantity);
-    // translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateX, RIGHT);
-    // translate(line->v1->x, line->v1->y, line->v1->centroidCoordinateY, UP);
-    // translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateX, RIGHT);
-    // translate(line->v2->x, line->v2->y, line->v2->centroidCoordinateY, UP);
+    translate(line->v1->x, line->v1->y, line->centroidCoordinateX, RIGHT);
+    translate(line->v1->x, line->v1->y, line->centroidCoordinateY, UP);
+    translate(line->v2->x, line->v2->y, line->centroidCoordinateX, RIGHT);
+    translate(line->v2->x, line->v2->y, line->centroidCoordinateY, UP);
 
     start = bresenhamAlgorithm(line->v1->x, line->v1->y, line->v2->x, line->v2->y);
     drawPoints(start);
     
     line = line->next;
   } 
+
+  square* square = firstSquare;
+  while(square != NULL) {
+    translate(square->v1->x, square->v1->y, square->centroidCoordinateX, LEFT);
+    translate(square->v1->x, square->v1->y, square->centroidCoordinateY, DOWN);
+    translate(square->v2->x, square->v2->y, square->centroidCoordinateX, LEFT);
+    translate(square->v2->x, square->v2->y, square->centroidCoordinateY, DOWN);
+    translate(square->v3->x, square->v3->y, square->centroidCoordinateX, LEFT);
+    translate(square->v3->x, square->v3->y, square->centroidCoordinateY, DOWN);
+    translate(square->v4->x, square->v4->y, square->centroidCoordinateX, LEFT);
+    translate(square->v4->x, square->v4->y, square->centroidCoordinateY, DOWN);
+    scale(square->v1->x, square->v1->y, quantity);
+    scale(square->v2->x, square->v2->y, quantity);
+    scale(square->v3->x, square->v3->y, quantity);
+    scale(square->v4->x, square->v4->y, quantity);
+    translate(square->v1->x, square->v1->y, square->centroidCoordinateX, RIGHT);
+    translate(square->v1->x, square->v1->y, square->centroidCoordinateY, UP);
+    translate(square->v2->x, square->v2->y, square->centroidCoordinateX, RIGHT);
+    translate(square->v2->x, square->v2->y, square->centroidCoordinateY, UP);
+    translate(square->v3->x, square->v3->y, square->centroidCoordinateX, RIGHT);
+    translate(square->v3->x, square->v3->y, square->centroidCoordinateY, UP);
+    translate(square->v4->x, square->v4->y, square->centroidCoordinateX, RIGHT);
+    translate(square->v4->x, square->v4->y, square->centroidCoordinateY, UP);
+
+    start = bresenhamAlgorithm(square->v1->x, square->v1->y, square->v3->x, square->v3->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(square->v3->x, square->v3->y, square->v2->x, square->v2->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(square->v2->x, square->v2->y, square->v4->x, square->v4->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(square->v4->x, square->v4->y, square->v1->x, square->v1->y);
+    drawPoints(start);
+    
+    square = square->next;
+  }
+
+  triangle* triangle = firstTriangle;
+  while(triangle != NULL) {
+    translate(triangle->v1->x, triangle->v1->y, triangle->centroidCoordinateX, LEFT);
+    translate(triangle->v1->x, triangle->v1->y, triangle->centroidCoordinateY, DOWN);
+    translate(triangle->v2->x, triangle->v2->y, triangle->centroidCoordinateX, LEFT);
+    translate(triangle->v2->x, triangle->v2->y, triangle->centroidCoordinateY, DOWN);
+    translate(triangle->v3->x, triangle->v3->y, triangle->centroidCoordinateX, LEFT);
+    translate(triangle->v3->x, triangle->v3->y, triangle->centroidCoordinateY, DOWN);
+    scale(triangle->v1->x, triangle->v1->y, quantity);
+    scale(triangle->v2->x, triangle->v2->y, quantity);
+    scale(triangle->v3->x, triangle->v3->y, quantity);
+    translate(triangle->v1->x, triangle->v1->y, triangle->centroidCoordinateX, RIGHT);
+    translate(triangle->v1->x, triangle->v1->y, triangle->centroidCoordinateY, UP);
+    translate(triangle->v2->x, triangle->v2->y, triangle->centroidCoordinateX, RIGHT);
+    translate(triangle->v2->x, triangle->v2->y, triangle->centroidCoordinateY, UP);
+    translate(triangle->v3->x, triangle->v3->y, triangle->centroidCoordinateX, RIGHT);
+    translate(triangle->v3->x, triangle->v3->y, triangle->centroidCoordinateY, UP);
+
+    start = bresenhamAlgorithm(triangle->v1->x, triangle->v1->y, triangle->v2->x, triangle->v2->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(triangle->v2->x, triangle->v2->y, triangle->v3->x, triangle->v3->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(triangle->v3->x, triangle->v3->y, triangle->v1->x, triangle->v1->y);
+    drawPoints(start);
+    
+    triangle = triangle->next;
+  }
+
+  circle* circle = firstCircle;
+  while(circle != NULL) {
+    circle->radius = (int)(circle->radius*quantity);
+
+    start = bresenhamToRasterizeCircles(circle->center->x, circle->center->y, circle->radius);
+    drawPoints(start);
+
+    circle = circle->next;
+  }
+
+  polygon* polygon = firstPolygon;
+  while(polygon != NULL) {
+    point* vertice = polygon->listOfVertices;
+    while(vertice != NULL) {
+      translate(vertice->x, vertice->y, polygon->centroidCoordinateX, LEFT);
+      translate(vertice->x, vertice->y, polygon->centroidCoordinateY, DOWN);
+      scale(vertice->x, vertice->y, quantity);
+      translate(vertice->x, vertice->y, polygon->centroidCoordinateX, RIGHT);
+      translate(vertice->x, vertice->y, polygon->centroidCoordinateY, UP);
+      vertice = vertice->next;
+    }
+
+    point* pnt = polygon->listOfVertices;
+    point* aux = pnt;
+    while(pnt->next != NULL){
+      start = bresenhamAlgorithm(pnt->x, pnt->y, pnt->next->x, pnt->next->y);
+      drawPoints(start);
+      if(pnt->next->next == NULL) aux = pnt->next;
+      pnt = pnt->next;
+    }
+
+    start = bresenhamAlgorithm(polygon->listOfVertices->x, polygon->listOfVertices->y, aux->x, aux->y);
+    drawPoints(start);
+    printf("centroid: %d %d\n", polygon->centroidCoordinateX, polygon->centroidCoordinateY);
+
+    polygon = polygon->next;
+  }
 }
 
 void applyMirror(int axis, int direction){
@@ -1225,6 +1385,21 @@ line* createLine(point* v1, point* v2){
   return newLine;
 }
 
+void applyShearing(int quantity){
+  line* line = firstLine;
+  while(line != NULL){
+    printf("v1: (%d %d) v2: (%d %d)\n", line->v1->x, line->v1->y, line->v2->x, line->v2->y);
+    shear(line->v1->x, line->v1->y, quantity);
+    shear(line->v2->x, line->v2->y, quantity);
+    printf("v1: (%d %d) v2: (%d %d)\n", line->v1->x, line->v1->y, line->v2->x, line->v2->y);
+
+    start = bresenhamAlgorithm(line->v1->x, line->v1->y, line->v2->x, line->v2->y);
+    drawPoints(start);
+
+    line = line->next;
+  }
+}
+
 void invalidKeyMessage() {
   printf("Invalid key!\n");
   printf("Press 'l' to draw lines\n");
@@ -1283,4 +1458,23 @@ point* createPoint(double x, double y, int centroidCoordinateX, int centroidCoor
   pnt->centroidCoordinateY = centroidCoordinateY;
 
   return pnt;
+}
+
+void floodFill(int x, int y, float* oldColor, float* newColor){
+  float color[3];
+  glReadPixels(x, y, 1, 1, GL_RGB, GL_FLOAT, color);
+  drawPoints(start);
+  if(color[0] != newColor[0] || color[1] != newColor[1] || color[2] != newColor[2]){
+    glColor3f(newColor[0], newColor[1], newColor[2]);
+    glBegin(GL_POINTS);
+      glVertex2i(x, y);
+    glEnd();
+    start = pushPoint(x, y, false, false);
+    glutSwapBuffers();
+    floodFill(x+1, y, oldColor, newColor);
+    floodFill(x-1, y, oldColor, newColor);
+    floodFill(x, y+1, oldColor, newColor);
+    floodFill(x, y-1, oldColor, newColor);
+  } 
+  drawPoints(start);
 }

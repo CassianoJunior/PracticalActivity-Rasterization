@@ -15,7 +15,7 @@
 void translate(int &x, int &y, int quantity, int direction);
 void rotate(int &x, int &y, float angle, int direction);
 void scale(int &x, int &y, int quantity);
-
+void shear(int &x, int &y, int quantity);
 void mirror(int &x, int &y, int axis, int distance);
 
 void translate(int &x, int &y, int quantity, int direction) {
@@ -41,9 +41,9 @@ void rotate(int &x, int &y, float angle, int direction) {
   }
 }
 
-void scale(int &x, int &y, int quantity) {
-  x *= quantity;
-  y *= quantity;
+void scale(int &x, int &y, double quantity) {
+  x = (int)(x * quantity);
+  y = (int)(y * quantity);
 }
 
 void mirror(int &x, int &y, int axis, int distance) {
@@ -52,4 +52,10 @@ void mirror(int &x, int &y, int axis, int distance) {
   } else if(axis == Y_AXIS) {
     x += 2*distance;
   }
+}
+
+void shear(int &x, int &y, int quantity) {
+  int oldX = x;
+  x += y*quantity;
+  y += oldX*quantity;
 }

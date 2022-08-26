@@ -79,6 +79,12 @@ circle* lastCircle = NULL;
 point* pushPolygonVertice(int x, int y);
 point* firstPolygonPoint = NULL;
 
+int getCentroidX(point* listOfVertices);
+int getCentroidY(point* listOfVertices);
+
+double getArea(point* listOfVertices);
+
+
 point* pushPoint(int x, int y, bool reduced, bool isVertice) {
   point* pnt = new point;
   pnt->x = x;
@@ -155,9 +161,11 @@ triangle* pushTriangle(point* v1, point* v2, point* v3, int centroidCoordinateX,
   return firstTriangle;
 }
 
-polygon* pushPolygon(point* listOfVertices) {
+polygon* pushPolygon(point* listOfVertices, int centroidCoordinateX, int centroidCoordinateY) {
   polygon* pv = new polygon;
   pv->listOfVertices = listOfVertices;
+  pv->centroidCoordinateX = centroidCoordinateX;
+  pv->centroidCoordinateY = centroidCoordinateY;
   pv->next = NULL;
   if (firstPolygon == NULL) {
     firstPolygon = pv;
@@ -214,4 +222,51 @@ point* popPoint() {
 		firstPointDrawn = pnt;
 	}
 	return removed;
+}
+
+int getCentroidX(point* listOfVertices) {
+  if (listOfVertices == NULL) return 0;
+  int sum = 0;
+  int area = getArea(listOfVertices);
+  point* aux = listOfVertices;
+  point* control;
+  while(aux->next != NULL){
+    sum += (aux->x + aux->next->x) * (aux->x * aux->next->y - aux->next->x * aux->y);
+    aux = aux->next;
+    if(aux->next == NULL) control = aux;
+  }
+  sum += (aux->x + control->x) * (aux->x * control->y - control->x * aux->y);
+  
+  return (int) sum/(6*area);
+}
+
+int getCentroidY(point* listOfVertices) {
+  if (listOfVertices == NULL) return 0;
+  int sum = 0;
+  int area = getArea(listOfVertices);
+  point* aux = listOfVertices;
+  point* control;
+  while(aux->next != NULL){
+    sum += (aux->y + aux->next->y) * (aux->x * aux->next->y - aux->next->x * aux->y);
+    aux = aux->next;
+    if(aux->next == NULL) control = aux;
+  }
+  sum += (aux->y + control->y) * (aux->x * control->y - control->x * aux->y);
+  
+  return (int) sum/(6*area);
+}
+
+double getArea(point* listOfVertices) {
+  if (listOfVertices == NULL) return 0;
+  int sum = 0;
+  point* aux = listOfVertices;
+  point* control;
+  while(aux->next != NULL){
+    sum += aux->x * aux->next->y - aux->next->x * aux->y;
+    aux = aux->next;
+    if(aux->next == NULL) control = aux;
+  }
+  sum += aux->x * control->y - control->x * aux->y;
+
+  return sum / 2;
 }
