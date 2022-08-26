@@ -1077,7 +1077,96 @@ void applyMirror(int axis, int direction){
     circle = circle->next;
   }
 
-  
+  polygon* polygon = firstPolygon;
+  while(polygon != NULL) {
+    switch(direction){
+      case UP:
+        {
+          int Ymax = polygon->listOfVertices->y;
+          point* vertice = polygon->listOfVertices;
+          while(vertice != NULL) {
+            if(vertice->y > Ymax) Ymax = vertice->y;
+            vertice = vertice->next;
+          }
+          vertice = polygon->listOfVertices;
+          while(vertice != NULL) {
+            int distance = Ymax - vertice->y;
+            mirror(vertice->x, vertice->y, axis, distance);
+            vertice = vertice->next;
+          }
+
+          break;
+        }
+      case DOWN:
+        {
+          int Ymin = polygon->listOfVertices->y;
+          point* vertice = polygon->listOfVertices;
+          while(vertice != NULL) {
+            if(vertice->y < Ymin) Ymin = vertice->y;
+            vertice = vertice->next;
+          }
+          vertice = polygon->listOfVertices;
+          while(vertice != NULL) {
+            int distance = Ymin - vertice->y;
+            mirror(vertice->x, vertice->y, axis, distance);
+            vertice = vertice->next;
+          }
+
+          break;
+        }
+      case LEFT:
+        {
+          int Xmin = polygon->listOfVertices->x;
+          point* vertice = polygon->listOfVertices;
+          while(vertice != NULL) {
+            if(vertice->x < Xmin) Xmin = vertice->x;
+            vertice = vertice->next;
+          }
+          vertice = polygon->listOfVertices;
+          while(vertice != NULL) {
+            int distance = Xmin - vertice->x;
+            mirror(vertice->x, vertice->y, axis, distance);
+            vertice = vertice->next;
+          }
+
+          break;
+        }
+      case RIGHT:
+        {
+          int Xmax = polygon->listOfVertices->x;
+          point* vertice = polygon->listOfVertices;
+          while(vertice != NULL) {
+            if(vertice->x > Xmax) Xmax = vertice->x;
+            vertice = vertice->next;
+          }
+          vertice = polygon->listOfVertices;
+          while(vertice != NULL) {
+            int distance = Xmax - vertice->x;
+            mirror(vertice->x, vertice->y, axis, distance);
+            vertice = vertice->next;
+          }
+
+          break;
+        }
+      default:
+        break;
+    }
+
+    point* pnt = polygon->listOfVertices;
+    point* aux = pnt;
+    while(pnt->next != NULL){
+      start = bresenhamAlgorithm(pnt->x, pnt->y, pnt->next->x, pnt->next->y);
+      drawPoints(start);
+      if(pnt->next->next == NULL) aux = pnt->next;
+      pnt = pnt->next;
+    }
+
+    start = bresenhamAlgorithm(polygon->listOfVertices->x, polygon->listOfVertices->y, aux->x, aux->y);
+    drawPoints(start);
+
+    polygon = polygon->next;
+  }
+
 }
 
 line* mirrorLine(line* lineToMirror, int axis, int direction){
