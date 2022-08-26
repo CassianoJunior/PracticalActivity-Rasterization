@@ -37,6 +37,8 @@
     // #define INCREASE 10020 // Aumentar
     // #define DECREASE 10021 // Diminuir
   #define MIRROR 1003 // Espelhamento / reflexao
+    // #define X_AXIS 10030
+    // #define Y_AXIS 10031
   #define SHEAR 1004 // Cisalhamento
 #define r 114 // Aplicar rotacoes no modo de transformacoes geometricas
 #define S 83 // Aplicar escala no modo de transformacoes geometricas
@@ -86,10 +88,13 @@ void clearScreen(void);
 void resetLists(void);
 void resetClicks(void);
 point* createPoint(double x, double y, int centroidCoordinateX, int centroidCoordinateY);
+line* createLine(point* v1, point* v2);
 
 void applyTranslation(point* aux, int direction);
 void applyRotation(point* aux, int direction);
-void applyScale(int isTo);
+void applyScale(int quantity);
+void applyMirror(int axis, int direction);
+  line* mirrorLine(line* lineToMirror, int axis, int direction);
 
 void invalidKeyMessage(void);
 
@@ -130,8 +135,6 @@ void reshape(int w, int h) {
   glOrtho (0, w, 0, h, -1 ,1);  
 
 	glMatrixMode(GL_MODELVIEW);
-  click1 = true; 
-  click2 = true;
 }
 
 void keyboard(unsigned char key, int x, int y){
@@ -256,6 +259,7 @@ void keyboard(unsigned char key, int x, int y){
       if(isToApplyGeometricTransformations) {
         activeTransformation = MIRROR;
         printf("Ready to mirror objects\n");
+        printf("Use up or down arrows to mirror in the Y axis and right or left arrows to mirror in the x axis!\n");
       }
       break;
     default:
@@ -289,9 +293,12 @@ void processSpecialKeys(int key, int x, int y) {
           // case SHEAR:
           //   applyShear(aux);
           //   break;
-          // case MIRROR:
-          //   applyMirror(aux);
-          //   break;
+          case MIRROR:
+            glClear(GL_COLOR_BUFFER_BIT);
+            clearScreen();
+            applyMirror(X_AXIS, UP);
+            drawPoints(start);
+            break;
           
           default:
             break;
@@ -322,9 +329,12 @@ void processSpecialKeys(int key, int x, int y) {
           // case SHEAR:
           //   applyShear(aux);
           //   break;
-          // case MIRROR:
-          //   applyMirror(aux);
-          //   break;
+          case MIRROR:
+            glClear(GL_COLOR_BUFFER_BIT);
+            clearScreen();
+            applyMirror(X_AXIS, DOWN);
+            drawPoints(start);
+            break;
           
           default:
             break;
@@ -355,9 +365,12 @@ void processSpecialKeys(int key, int x, int y) {
           // case SHEAR:
           //   applyShear(aux);
           //   break;
-          // case MIRROR:
-          //   applyMirror(aux);
-          //   break;
+          case MIRROR:
+            glClear(GL_COLOR_BUFFER_BIT);
+            clearScreen();
+            applyMirror(Y_AXIS, LEFT);
+            drawPoints(start);
+            break;
           
           default:
             break;
@@ -373,13 +386,13 @@ void processSpecialKeys(int key, int x, int y) {
               glClear(GL_COLOR_BUFFER_BIT);
               clearScreen();
               applyTranslation(aux, RIGHT);
-              drawPoints(start);;
+              drawPoints(start);
               break;
             case ROTATE:
               glClear(GL_COLOR_BUFFER_BIT);
               clearScreen();
               applyRotation(aux, CLOCKWISE);
-              drawPoints(start);;
+              drawPoints(start);
               break;
             case SCALE:
               printf("Invalid move!\n");
@@ -388,9 +401,12 @@ void processSpecialKeys(int key, int x, int y) {
             // case SHEAR:
             //   applyShear(aux);
             //   break;
-            // case MIRROR:
-            //   applyMirror(aux);
-            //   break;
+            case MIRROR:
+              glClear(GL_COLOR_BUFFER_BIT);
+              clearScreen();
+              applyMirror(Y_AXIS, RIGHT);
+              drawPoints(start);
+              break;
             
             default:
               break;
@@ -851,6 +867,273 @@ void applyScale(int quantity){
     
     line = line->next;
   } 
+}
+
+void applyMirror(int axis, int direction){
+  line* lines = firstLine;
+  while(lines != NULL) {
+    lines = mirrorLine(lines, axis, direction);
+    
+    start = bresenhamAlgorithm(lines->v1->x, lines->v1->y, lines->v2->x, lines->v2->y);
+    lines->centroidCoordinateX = (lines->v1->x + lines->v2->x) / 2;
+    lines->centroidCoordinateY = (lines->v1->y + lines->v2->y) / 2;
+    drawPoints(start);
+
+    lines = lines->next;
+  }
+
+  square* square = firstSquare;
+  while(square != NULL){
+    switch(direction){
+      case UP:
+        if(square->v1->y > square->v2->y){
+          int YDistance = square->v1->y - square->v2->y; 
+          mirror(square->v2->x, square->v2->y, axis, YDistance);
+          mirror(square->v4->x, square->v4->y, axis, YDistance);
+        } else {
+          int YDistance = square->v2->y - square->v1->y;
+          mirror(square->v3->x, square->v3->y, axis, YDistance);
+          mirror(square->v1->x, square->v1->y, axis, YDistance);
+        }
+        break;
+      case DOWN:
+        if(square->v1->y < square->v2->y){
+          int YDistance = square->v1->y - square->v2->y;
+          mirror(square->v2->x, square->v2->y, axis, YDistance);
+          mirror(square->v4->x, square->v4->y, axis, YDistance);
+        } else {
+          int YDistance = square->v2->y - square->v1->y;
+          mirror(square->v3->x, square->v3->y, axis, YDistance);
+          mirror(square->v1->x, square->v1->y, axis, YDistance);
+        }
+        break;
+      case LEFT:
+        if(square->v1->x < square->v2->x){
+          int XDistance = square->v1->x - square->v2->x;
+          mirror(square->v2->x, square->v2->y, axis, XDistance);
+          mirror(square->v3->x, square->v3->y, axis, XDistance);
+        } else {
+          int XDistance = square->v2->x - square->v1->x;
+          mirror(square->v4->x, square->v4->y, axis, XDistance);
+          mirror(square->v1->x, square->v1->y, axis, XDistance);
+        }
+        break;
+      case RIGHT:
+        if(square->v1->x > square->v2->x){
+          int XDistance = square->v1->x - square->v2->x;
+          mirror(square->v2->x, square->v2->y, axis, XDistance);
+          mirror(square->v3->x, square->v3->y, axis, XDistance);
+        } else {
+          int XDistance = square->v2->x - square->v1->x;
+          mirror(square->v4->x, square->v4->y, axis, XDistance);
+          mirror(square->v1->x, square->v1->y, axis, XDistance);
+        }
+        break;
+      default:
+        break;
+    }
+
+    start = bresenhamAlgorithm(square->v1->x, square->v1->y, square->v3->x, square->v3->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(square->v3->x, square->v3->y, square->v2->x, square->v2->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(square->v2->x, square->v2->y, square->v4->x, square->v4->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(square->v4->x, square->v4->y, square->v1->x, square->v1->y);
+    drawPoints(start);
+
+    square->centroidCoordinateX = (square->v1->x + square->v2->x + square->v3->x + square->v4->x) / 4;
+    square->centroidCoordinateY = (square->v1->y + square->v2->y + square->v3->y + square->v4->y) / 4;
+
+    square = square->next;
+  }
+
+  triangle* triangle = firstTriangle;
+  line* lineA;
+  line* lineB;
+  while(triangle != NULL) {
+    switch(direction){
+      case UP:
+        {
+          int Ymax = triangle->v1->y;
+          if(triangle->v2->y > Ymax) Ymax = triangle->v2->y;
+          if(triangle->v3->y > Ymax) Ymax = triangle->v3->y;
+
+          if(Ymax == triangle->v1->y) {
+            lineA = createLine(triangle->v1, triangle->v2);
+            lineB = createLine(triangle->v1, triangle->v3);
+          } else if(Ymax == triangle->v2->y) {
+            lineA = createLine(triangle->v2, triangle->v1);
+            lineB = createLine(triangle->v2, triangle->v3);
+          } else {
+            lineA = createLine(triangle->v3, triangle->v1);
+            lineB = createLine(triangle->v3, triangle->v2);
+          }
+
+          mirrorLine(lineA, axis, direction);
+          mirrorLine(lineB, axis, direction);
+          break;
+        }
+      case DOWN:
+        {
+          int Ymin = triangle->v1->y;
+          if(triangle->v2->y < Ymin) Ymin = triangle->v2->y;
+          if(triangle->v3->y < Ymin) Ymin = triangle->v3->y;
+
+          if(Ymin == triangle->v1->y) {
+            lineA = createLine(triangle->v1, triangle->v2);
+            lineB = createLine(triangle->v1, triangle->v3);
+          } else if(Ymin == triangle->v2->y) {
+            lineA = createLine(triangle->v2, triangle->v1);
+            lineB = createLine(triangle->v2, triangle->v3);
+          } else {
+            lineA = createLine(triangle->v3, triangle->v1);
+            lineB = createLine(triangle->v3, triangle->v2);
+          }
+
+          mirrorLine(lineA, axis, direction);
+          mirrorLine(lineB, axis, direction);
+          break;
+        }
+      case LEFT:
+        {
+          int Xmin = triangle->v1->x;
+          if(triangle->v2->x < Xmin) Xmin = triangle->v2->x;
+          if(triangle->v3->x < Xmin) Xmin = triangle->v3->x;
+
+          if(Xmin == triangle->v1->x) {
+            lineA = createLine(triangle->v1, triangle->v2);
+            lineB = createLine(triangle->v1, triangle->v3);
+          } else if(Xmin == triangle->v2->x) {
+            lineA = createLine(triangle->v2, triangle->v1);
+            lineB = createLine(triangle->v2, triangle->v3);
+          } else {
+            lineA = createLine(triangle->v3, triangle->v1);
+            lineB = createLine(triangle->v3, triangle->v2);
+          }
+
+          mirrorLine(lineA, axis, direction);
+          mirrorLine(lineB, axis, direction);
+          break;
+        }
+      case RIGHT:
+        {
+          int Xmax = triangle->v1->x;
+          if(triangle->v2->x > Xmax) Xmax = triangle->v2->x;
+          if(triangle->v3->x > Xmax) Xmax = triangle->v3->x;
+
+          if(Xmax == triangle->v1->x) {
+            lineA = createLine(triangle->v1, triangle->v2);
+            lineB = createLine(triangle->v1, triangle->v3);
+          } else if(Xmax == triangle->v2->x) {
+            lineA = createLine(triangle->v2, triangle->v1);
+            lineB = createLine(triangle->v2, triangle->v3);
+          } else {
+            lineA = createLine(triangle->v3, triangle->v1);
+            lineB = createLine(triangle->v3, triangle->v2);
+          }
+
+          mirrorLine(lineA, axis, direction);
+          mirrorLine(lineB, axis, direction);
+          break;
+        }
+      default:
+        break;
+    } 
+
+
+    start = bresenhamAlgorithm(triangle->v1->x, triangle->v1->y, triangle->v2->x, triangle->v2->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(triangle->v2->x, triangle->v2->y, triangle->v3->x, triangle->v3->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(triangle->v3->x, triangle->v3->y, triangle->v1->x, triangle->v1->y);
+    drawPoints(start);
+
+    triangle = triangle->next;
+  }
+
+  circle* circle = firstCircle;
+  while(circle != NULL) {
+    switch(direction){
+      case UP:
+        mirror(circle->center->x, circle->center->y, axis, circle->radius);
+        break;
+      case DOWN:
+        mirror(circle->center->x, circle->center->y, axis, -(circle->radius));
+        break;
+      case LEFT:
+        mirror(circle->center->x, circle->center->y, axis, -(circle->radius));
+        break;
+      case RIGHT:
+        mirror(circle->center->x, circle->center->y, axis, circle->radius);
+        break;
+      default:
+        break;
+    }
+
+    start = bresenhamToRasterizeCircles(circle->center->x, circle->center->y, circle->radius);
+    drawPoints(start);
+
+    circle = circle->next;
+  }
+
+  
+}
+
+line* mirrorLine(line* lineToMirror, int axis, int direction){
+  switch(direction){
+      case UP:
+        if(lineToMirror->v1->y > lineToMirror->v2->y){
+          int YDistance = lineToMirror->v1->y - lineToMirror->v2->y; 
+          mirror(lineToMirror->v2->x, lineToMirror->v2->y, axis, YDistance);
+        } else {
+          int YDistance = lineToMirror->v2->y - lineToMirror->v1->y;
+          mirror(lineToMirror->v1->x, lineToMirror->v1->y, axis, YDistance);
+        }
+        break;
+      case DOWN:
+        if(lineToMirror->v1->y < lineToMirror->v2->y){
+          int YDistance = lineToMirror->v1->y - lineToMirror->v2->y;
+          mirror(lineToMirror->v2->x, lineToMirror->v2->y, axis, YDistance);
+        } else {
+          int YDistance = lineToMirror->v2->y - lineToMirror->v1->y;
+          mirror(lineToMirror->v1->x, lineToMirror->v1->y, axis, YDistance);
+        }
+        break;
+      case LEFT:
+        if(lineToMirror->v1->x < lineToMirror->v2->x){
+          int XDistance = lineToMirror->v1->x - lineToMirror->v2->x;
+          mirror(lineToMirror->v2->x, lineToMirror->v2->y, axis, XDistance);
+        } else {
+          int XDistance = lineToMirror->v2->x - lineToMirror->v1->x;
+          mirror(lineToMirror->v1->x, lineToMirror->v1->y, axis, XDistance);
+        }
+        break;
+      case RIGHT:
+        if(lineToMirror->v1->x > lineToMirror->v2->x){
+          int XDistance = lineToMirror->v1->x - lineToMirror->v2->x;
+          mirror(lineToMirror->v2->x, lineToMirror->v2->y, axis, XDistance);
+        } else {
+          int XDistance = lineToMirror->v2->x - lineToMirror->v1->x;
+          mirror(lineToMirror->v1->x, lineToMirror->v1->y, axis, XDistance);
+        }
+        break;
+      default:
+        break;
+    }
+
+    return lineToMirror;
+}
+
+line* createLine(point* v1, point* v2){
+  line* newLine = new line;
+  newLine->v1 = v1;
+  newLine->v2 = v2;
+  newLine->next = NULL;
+  newLine->centroidCoordinateX = (v1->x + v2->x) / 2;
+  newLine->centroidCoordinateY = (v1->y + v2->y) / 2;
+
+  return newLine;
 }
 
 void invalidKeyMessage() {

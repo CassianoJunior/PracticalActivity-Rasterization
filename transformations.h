@@ -9,10 +9,14 @@
 #define COUNTERCLOCKWISE 10010 // Sentido anti-horario
 #define CLOCKWISE 10011 // Sentido horario
 
+#define X_AXIS 10030
+#define Y_AXIS 10031
+
 void translate(int &x, int &y, int quantity, int direction);
 void rotate(int &x, int &y, float angle, int direction);
 void scale(int &x, int &y, int quantity);
 
+void mirror(int &x, int &y, int axis, int distance);
 
 void translate(int &x, int &y, int quantity, int direction) {
   if(direction == RIGHT) {
@@ -40,4 +44,12 @@ void rotate(int &x, int &y, float angle, int direction) {
 void scale(int &x, int &y, int quantity) {
   x *= quantity;
   y *= quantity;
+}
+
+void mirror(int &x, int &y, int axis, int distance) {
+  if(axis == X_AXIS) {
+    y += 2*distance;
+  } else if(axis == Y_AXIS) {
+    x += 2*distance;
+  }
 }
