@@ -61,8 +61,8 @@ bool click1 = false, click2 = false, click3 = false;
 
 int width = 800, height = 600;
 
-point* start = NULL;
-point* polygonPoints = NULL;
+point* start = NULL; // Inicio da lista de pontos que estao desenhados na tela em determinado momento
+point* polygonPoints = NULL; // Inicio da lista de vertices dos poligonos, utilizada para guardar os vertices. 
 
 void init(void);
 void reshape(int w, int h);
@@ -103,8 +103,7 @@ void applyShearing(int quantity);
 void floodFill(int x, int y, float* oldColor, float* newColor);
 void mouseToFloodFill(int button, int state, int x, int y);
 
-
-void invalidKeyMessage(void);
+void keyMapMessage(void);
 
 int main(int argc, char** argv) {
     glutInit(&argc, argv); 
@@ -119,9 +118,7 @@ int main(int argc, char** argv) {
     glutMouseFunc(mouseToDrawLinesAndSquares); 
     glutDisplayFunc(displayLines); 
 
-    freeMode 
-      ? printf("Free mode ON!\n")
-      : printf("Free mode OFF!\n");
+    keyMapMessage();
 
     glutMainLoop(); 
     
@@ -187,7 +184,8 @@ void keyboard(unsigned char key, int x, int y){
         }
         resetClicks();
       } else {
-
+        printf("Invalid key!\n");
+        keyMapMessage();
       }
       break;
     case p:
@@ -202,7 +200,8 @@ void keyboard(unsigned char key, int x, int y){
         }
         resetClicks();
       } else {
-
+        printf("Invalid key!\n");
+        keyMapMessage();
       }
       break;
     case s:
@@ -245,7 +244,8 @@ void keyboard(unsigned char key, int x, int y){
         printf("Ready to rotate objects\n");
         printf("Use arrow left to rotate counterclockwise or arrow right to rotate clockwise!\n");
       } else {
-        invalidKeyMessage();
+        printf("Invalid key!\n");
+        keyMapMessage();
       }
       break;
     case c:
@@ -269,7 +269,10 @@ void keyboard(unsigned char key, int x, int y){
       if(isToApplyGeometricTransformations) {
         activeTransformation = MIRROR;
         printf("Ready to mirror objects\n");
-        printf("Use up or down arrows to mirror in the Y axis and right or left arrows to mirror in the x axis!\n");
+        printf("Use up or down arrows to mirror in the X axis and right or left arrows to mirror in the Y axis!\n");
+      } else {
+        printf("Invalid key!\n");
+        keyMapMessage();
       }
       break;
     case SPACE:
@@ -279,7 +282,8 @@ void keyboard(unsigned char key, int x, int y){
       resetClicks();
       break;
     default:
-      invalidKeyMessage();
+      printf("Invalid key!\n");
+      keyMapMessage();
       break;
   }
 }
@@ -745,9 +749,7 @@ void displayToFloodFill(void){
   glClear(GL_COLOR_BUFFER_BIT);
   glLoadIdentity();
   
-  glColor3f(1.0, 1.0, 1.0); 
-  printf("entrei");
-  click1 ? printf("SIm") : printf("Nao");
+  glColor3f(1.0, 1.0, 1.0);
   if(click1){
     printf("Applying flood fill!\n");
     click1 = false;
@@ -755,6 +757,7 @@ void displayToFloodFill(void){
     glPointSize(1);
     float newColor[] = {0, 1, 1};
     floodFill(xA, yA, oldColor, newColor);
+    printf("Flood fill applied!\n");
   }
 }
 
@@ -884,6 +887,7 @@ void applyTranslation(point* pnt, int direction) {
   }
 }
 
+// A rotacao esta com algum problema, ela diminui a figura desenhada a cada rotacao 
 void applyRotation(point* pnt, int direction) {
   line* line = firstLine;
   while(line != NULL) {
@@ -903,6 +907,102 @@ void applyRotation(point* pnt, int direction) {
     start = bresenhamAlgorithm(line->v1->x, line->v1->y, line->v2->x, line->v2->y);
     drawPoints(start);
     line = line->next;
+  }
+
+  square* square = firstSquare;
+  while(square != NULL) {
+    int displacementX = square->centroidCoordinateX;
+    int displacementY = square->centroidCoordinateY;
+    translate(square->v1->x, square->v1->y, displacementX, LEFT);
+    translate(square->v1->x, square->v1->y, displacementY, DOWN);
+    translate(square->v2->x, square->v2->y, displacementX, LEFT);
+    translate(square->v2->x, square->v2->y, displacementY, DOWN);
+    translate(square->v3->x, square->v3->y, displacementX, LEFT);
+    translate(square->v3->x, square->v3->y, displacementY, DOWN);
+    translate(square->v4->x, square->v4->y, displacementX, LEFT);
+    translate(square->v4->x, square->v4->y, displacementY, DOWN);
+    rotate(square->v1->x, square->v1->y, DEFAULT_ANGLE, direction);
+    rotate(square->v2->x, square->v2->y, DEFAULT_ANGLE, direction);
+    rotate(square->v3->x, square->v3->y, DEFAULT_ANGLE, direction);
+    rotate(square->v4->x, square->v4->y, DEFAULT_ANGLE, direction);
+    translate(square->v1->x, square->v1->y, displacementX, RIGHT);
+    translate(square->v1->x, square->v1->y, displacementY, UP);
+    translate(square->v2->x, square->v2->y, displacementX, RIGHT);
+    translate(square->v2->x, square->v2->y, displacementY, UP);
+    translate(square->v3->x, square->v3->y, displacementX, RIGHT);
+    translate(square->v3->x, square->v3->y, displacementY, UP);
+    translate(square->v4->x, square->v4->y, displacementX, RIGHT);
+    translate(square->v4->x, square->v4->y, displacementY, UP);
+
+    start = bresenhamAlgorithm(square->v1->x, square->v1->y, square->v3->x, square->v3->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(square->v3->x, square->v3->y, square->v2->x, square->v2->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(square->v2->x, square->v2->y, square->v4->x, square->v4->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(square->v4->x, square->v4->y, square->v1->x, square->v1->y);
+    drawPoints(start);
+
+    square = square->next;
+  }
+
+  triangle* triangle = firstTriangle;
+  while(triangle != NULL) {
+    int displacementX = triangle->centroidCoordinateX;
+    int displacementY = triangle->centroidCoordinateY;
+    translate(triangle->v1->x, triangle->v1->y, displacementX, LEFT);
+    translate(triangle->v1->x, triangle->v1->y, displacementY, DOWN);
+    translate(triangle->v2->x, triangle->v2->y, displacementX, LEFT);
+    translate(triangle->v2->x, triangle->v2->y, displacementY, DOWN);
+    translate(triangle->v3->x, triangle->v3->y, displacementX, LEFT);
+    translate(triangle->v3->x, triangle->v3->y, displacementY, DOWN);
+    rotate(triangle->v1->x, triangle->v1->y, DEFAULT_ANGLE, direction);
+    rotate(triangle->v2->x, triangle->v2->y, DEFAULT_ANGLE, direction);
+    rotate(triangle->v3->x, triangle->v3->y, DEFAULT_ANGLE, direction);
+    translate(triangle->v1->x, triangle->v1->y, displacementX, RIGHT);
+    translate(triangle->v1->x, triangle->v1->y, displacementY, UP);
+    translate(triangle->v2->x, triangle->v2->y, displacementX, RIGHT);
+    translate(triangle->v2->x, triangle->v2->y, displacementY, UP);
+    translate(triangle->v3->x, triangle->v3->y, displacementX, RIGHT);
+    translate(triangle->v3->x, triangle->v3->y, displacementY, UP);
+
+    start = bresenhamAlgorithm(triangle->v1->x, triangle->v1->y, triangle->v2->x, triangle->v2->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(triangle->v2->x, triangle->v2->y, triangle->v3->x, triangle->v3->y);
+    drawPoints(start);
+    start = bresenhamAlgorithm(triangle->v3->x, triangle->v3->y, triangle->v1->x, triangle->v1->y);
+    drawPoints(start);
+
+    triangle = triangle->next;
+  }
+
+  polygon* polygon = firstPolygon;
+  while(polygon != NULL) {
+    int displacementX = polygon->centroidCoordinateX;
+    int displacementY = polygon->centroidCoordinateY;
+    point* vertice = polygon->listOfVertices;
+    while(vertice != NULL) {
+      translate(vertice->x, vertice->y, displacementX, LEFT);
+      translate(vertice->x, vertice->y, displacementY, DOWN);
+      rotate(vertice->x, vertice->y, DEFAULT_ANGLE, direction);
+      translate(vertice->x, vertice->y, displacementX, RIGHT);
+      translate(vertice->x, vertice->y, displacementY, UP);
+      vertice = vertice->next;
+    }
+
+    vertice = polygon->listOfVertices;
+    point* aux = vertice;
+    while(vertice->next != NULL){
+      start = bresenhamAlgorithm(vertice->x, vertice->y, vertice->next->x, vertice->next->y);
+      drawPoints(start);
+      if(vertice->next->next == NULL) aux = vertice->next;
+      vertice = vertice->next;
+    }
+
+    start = bresenhamAlgorithm(polygon->listOfVertices->x, polygon->listOfVertices->y, aux->x, aux->y);
+    drawPoints(start);
+
+    polygon = polygon->next;
   }
 
 }
@@ -1023,7 +1123,6 @@ void applyScale(double quantity){
 
     start = bresenhamAlgorithm(polygon->listOfVertices->x, polygon->listOfVertices->y, aux->x, aux->y);
     drawPoints(start);
-    printf("centroid: %d %d\n", polygon->centroidCoordinateX, polygon->centroidCoordinateY);
 
     polygon = polygon->next;
   }
@@ -1385,6 +1484,7 @@ line* createLine(point* v1, point* v2){
   return newLine;
 }
 
+// Nao consegui terminar a tempo
 void applyShearing(int quantity){
   line* line = firstLine;
   while(line != NULL){
@@ -1400,8 +1500,8 @@ void applyShearing(int quantity){
   }
 }
 
-void invalidKeyMessage() {
-  printf("Invalid key!\n");
+void keyMapMessage() {
+  printf("Keymap:\n");
   printf("Press 'l' to draw lines\n");
   printf("Press 's' to draw squares\n");
   printf("Press 't' to draw triagles\n");
